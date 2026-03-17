@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { AuthProvider } from '../src/context/AuthContext'; // Thêm Import
+import { AuthProvider } from '../src/context/AuthContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -23,7 +23,6 @@ export default function RootLayout() {
   );
 }
 
-// Tách ra màn hình Screen để các layout sau bọc được layout gốc
 const StackScreenStructure = () => {
     return (
         <Stack>

@@ -13,20 +13,18 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { loginUser } from '../services/authService';
-import { useAuth } from '../context/AuthContext'; // Import context
+import { useAuth } from '../context/AuthContext';
 
 const LoginScreen = () => {
   const router = useRouter();
-  const { login } = useAuth(); // Lấy hàm save User
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Quản lý trạng thái Call API và báo lỗi
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async () => {
-    // ... validate form ...
     if (!email || !password) {
       setErrorMsg('Vui lòng nhập Email và Mật khẩu.');
       return;
@@ -38,12 +36,10 @@ const LoginScreen = () => {
       const data = await loginUser(email, password);
       setIsLoading(false);
 
-      // 1. Lưu user và token vào Context để dùng chung toàn app
       login(data.user, data.token);
 
       Alert.alert("Thành công", `Chào mừng trở lại, ${data.user?.full_name || email}`);
 
-      // 2. Chuyển hướng theo Role
       if (data.user && data.user.role === 'admin') {
         router.replace('/(admin-tabs)');
       } else {
