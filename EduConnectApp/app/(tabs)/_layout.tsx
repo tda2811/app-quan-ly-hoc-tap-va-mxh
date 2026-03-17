@@ -13,7 +13,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2D58E6', // Màu xanh đặc trưng khi chọn Tab
+        tabBarActiveTintColor: '#B71C1C', // Màu Đỏ đặc trưng khi chọn Tab
         headerShown: true,                // Hiện thanh tiêu đề màn hình Header
         tabBarButton: HapticTab,
         tabBarStyle: Platform.select({

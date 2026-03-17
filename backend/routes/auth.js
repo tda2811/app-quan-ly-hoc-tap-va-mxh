@@ -105,6 +105,10 @@ router.post('/login', async (req, res) => {
             if (profiles.length > 0) userInfo = { ...userInfo, ...profiles[0] };
         }
 
+        if (user.role === 'admin') {
+            const [profiles] = await db.query('SELECT full_name, avatar_url FROM students WHERE user_id = ?', [user.id]);
+            if (profiles.length > 0) userInfo = { ...userInfo, ...profiles[0] };
+        }
         const token = jwt.sign(
             { id: user.id, role: user.role },
             process.env.JWT_SECRET || 'SecretKeyEduConnect',

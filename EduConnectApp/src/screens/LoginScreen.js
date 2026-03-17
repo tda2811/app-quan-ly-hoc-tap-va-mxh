@@ -13,34 +13,42 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { loginUser } from '../services/authService';
+import { useAuth } from '../context/AuthContext'; // Import context
 
 const LoginScreen = () => {
   const router = useRouter();
+  const { login } = useAuth(); // Lấy hàm save User
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   // Quản lý trạng thái Call API và báo lỗi
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async () => {
-    // 1. Validate form rỗng
+    // ... validate form ...
     if (!email || !password) {
       setErrorMsg('Vui lòng nhập Email và Mật khẩu.');
       return;
     }
-    setErrorMsg(''); // Xoá lỗi cũ nếu có
+    setErrorMsg('');
     setIsLoading(true);
 
     try {
-      // 2. Fetch API qua authService (Kết nối DB MySQL)
       const data = await loginUser(email, password);
-      
       setIsLoading(false);
-      
+
+      // 1. Lưu user và token vào Context để dùng chung toàn app
+      login(data.user, data.token);
+
       Alert.alert("Thành công", `Chào mừng trở lại, ${data.user?.full_name || email}`);
-      // Trượt vào hệ thống (thanh Tabs)
-      router.replace('/(tabs)');
+
+      // 2. Chuyển hướng theo Role
+      if (data.user && data.user.role === 'admin') {
+        router.replace('/(admin-tabs)');
+      } else {
+        router.replace('/(tabs)');
+      }
 
     } catch (error) {
       setIsLoading(false);
@@ -49,15 +57,16 @@ const LoginScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <View style={styles.formContainer}>
         {/* LOGO TRƯỜNG HOẶC APP */}
-        <Image 
-          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3048/3048122.png' }} 
-          style={styles.logo} 
+        <Image
+          source={require('../../assets/images/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
         />
         <Text style={styles.title}>EduConnect</Text>
         <Text style={styles.subtitle}>Mạng Xã Hội & Quản Lý Học Tập</Text>
@@ -81,7 +90,7 @@ const LoginScreen = () => {
             value={email}
             onChangeText={(text) => {
               setEmail(text);
-              setErrorMsg(''); 
+              setErrorMsg('');
             }}
           />
         </View>
@@ -108,8 +117,8 @@ const LoginScreen = () => {
         </TouchableOpacity>
 
         {/* NÚT ĐĂNG NHẬP */}
-        <TouchableOpacity 
-          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -128,7 +137,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFD', 
+    backgroundColor: '#F7FAFD',
     justifyContent: 'center',
   },
   formContainer: {
@@ -140,12 +149,11 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     marginBottom: 16,
-    tintColor: '#2D58E6', 
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1A237E', 
+    color: '#B71C1C', // Màu Đỏ
     marginBottom: 4,
   },
   subtitle: {
@@ -193,7 +201,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 5,
-    elevation: 2, 
+    elevation: 2,
   },
   forgotPassBtn: {
     width: '100%',
@@ -201,25 +209,25 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPassText: {
-    color: '#2D58E6',
+    color: '#B71C1C', // Màu Đỏ
     fontWeight: '600',
     fontSize: 13,
   },
   loginButton: {
     width: '100%',
     height: 54,
-    backgroundColor: '#2D58E6',
+    backgroundColor: '#B71C1C', // Màu Đỏ
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#2D58E6',
+    shadowColor: '#B71C1C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   loginButtonDisabled: {
-    backgroundColor: '#A0B4F5', 
+    backgroundColor: '#EF9A9A', // Đỏ Nhạt 
     shadowOpacity: 0,
     elevation: 0,
   },

@@ -11,6 +11,6 @@ export default function LMSScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#2D58E6' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#B71C1C' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 10 }
 });

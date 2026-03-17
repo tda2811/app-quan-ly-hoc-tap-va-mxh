@@ -3,6 +3,30 @@ const router = express.Router();
 const db = require('../config/db');
 
 /**
+ * Láy Thống kê (Dashboard)
+ */
+router.get('/stats', async (req, res) => {
+    try {
+        const [[{ count: studentCount }]] = await db.query('SELECT COUNT(*) as count FROM users WHERE role = "student"');
+        const [[{ count: teacherCount }]] = await db.query('SELECT COUNT(*) as count FROM users WHERE role = "teacher"');
+        const [[{ count: classCount }]] = await db.query('SELECT COUNT(*) as count FROM classes');
+        const [[{ count: majorCount }]] = await db.query('SELECT COUNT(*) as count FROM majors');
+
+        res.json({
+            success: true,
+            data: {
+                studentCount,
+                teacherCount,
+                classCount,
+                majorCount
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi lấy thống kê dashboard.' });
+    }
+});
+
+/**
  * Lấy danh sách toàn bộ User
  */
 router.get('/users', async (req, res) => {
