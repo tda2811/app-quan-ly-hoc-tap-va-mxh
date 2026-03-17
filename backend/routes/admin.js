@@ -96,4 +96,59 @@ router.put('/students/:id', async (req, res) => {
     }
 });
 
+/**
+ * Cập nhật User (Quyền, Trạng thái)
+ */
+router.put('/users/:id', async (req, res) => {
+    const { id } = req.params;
+    const { role, status } = req.body;
+    try {
+        await db.query('UPDATE users SET role = ?, status = ? WHERE id = ?', [role, status, id]);
+        res.json({ success: true, message: 'Cập nhật user thành công.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi cập nhật user.' });
+    }
+});
+
+/**
+ * Xóa User
+ */
+router.delete('/users/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Có thể cần xóa cascading students/teachers profile trước
+        await db.query('DELETE FROM users WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Xóa user thành công.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi xóa user.' });
+    }
+});
+
+/**
+ * Cập nhật Lớp học
+ */
+router.put('/classes/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, major_id, cohort } = req.body;
+    try {
+        await db.query('UPDATE classes SET name = ?, major_id = ?, cohort = ? WHERE id = ?', [name, major_id, cohort, id]);
+        res.json({ success: true, message: 'Cập nhật lớp học thành công.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi cập nhật lớp học.' });
+    }
+});
+
+/**
+ * Xóa Lớp học
+ */
+router.delete('/classes/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query('DELETE FROM classes WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Xóa lớp học thành công.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi xóa lớp học.' });
+    }
+});
+
 module.exports = router;

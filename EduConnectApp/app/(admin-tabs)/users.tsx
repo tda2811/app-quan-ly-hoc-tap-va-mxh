@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -25,8 +25,39 @@ export default function AdminUsersScreen() {
     }
   };
 
+  const handleUserAction = (item: any) => {
+    Alert.alert(
+      'Quản Lý Thành Viên',
+      `Người dùng: ${item.email}`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: item.role === 'student' ? 'Nâng lên Giảng Viên' : 'Xuống Sinh Viên', 
+          onPress: () => updateUser(item.id, { role: item.role === 'student' ? 'teacher' : 'student', status: item.status }) 
+        },
+        { 
+          text: item.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa', 
+          style: item.status === 'active' ? 'destructive' : 'default',
+          onPress: () => updateUser(item.id, { role: item.role, status: item.status === 'active' ? 'banned' : 'active' }) 
+        },
+      ]
+    );
+  };
+
+  const updateUser = async (id: string, payload: any) => {
+    try {
+      const res = await axios.put(`${API_URL}/admin/users/${id}`, payload);
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Cập nhật tài khoản hoàn tất.');
+        fetchUsers();
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', 'Không thể cập nhật người dùng.');
+    }
+  };
+
   const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.userCard}>
+    <TouchableOpacity style={styles.userCard} onPress={() => handleUserAction(item)}>
       <Text style={styles.userName}>{item.full_name || 'Học Viên Chưa Tạo Profile'}</Text>
       <Text style={styles.userEmail}>📧 {item.email}</Text>
       <View style={styles.badgeRow}>
@@ -37,7 +68,7 @@ export default function AdminUsersScreen() {
              <Text style={styles.badgeText}>{item.status}</Text>
          </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
