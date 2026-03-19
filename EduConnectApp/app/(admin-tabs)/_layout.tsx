@@ -49,8 +49,8 @@ export default function AdminLayout() {
       <Tabs.Screen
         name="groups"
         options={{
-          title: 'Nhóm Chat',
-          headerTitle: 'Quản Lý Nhóm Chat',
+          title: 'Hội Nhóm',
+          headerTitle: 'Quản Lý Hội Nhóm',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="bubbles.and.sparkles.fill" color={color} />,
         }}
       />

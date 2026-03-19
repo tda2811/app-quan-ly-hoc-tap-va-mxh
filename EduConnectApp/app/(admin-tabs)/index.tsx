@@ -82,11 +82,31 @@ export default function AdminDashboard() {
       )}
 
       <Text style={styles.sectionTitle}>Chức Năng Gần Đây</Text>
-      <TouchableOpacity style={styles.actionBtn}>
-        <Text style={styles.actionText}>📁 Quản Lý File / Tài Liệu</Text>
-      </TouchableOpacity>
+      
+      <View style={styles.quickAccessGrid}>
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/documents')}>
+          <Text style={styles.gridActionIcon}>📁</Text>
+          <Text style={styles.gridActionText}>Quản Lý File</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/exams')}>
+          <Text style={styles.gridActionIcon}>📅</Text>
+          <Text style={styles.gridActionText}>Lịch Thi</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/posts')}>
+          <Text style={styles.gridActionIcon}>📝</Text>
+          <Text style={styles.gridActionText}>Bài Viết</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/notifications')}>
+          <Text style={styles.gridActionIcon}>🔔</Text>
+          <Text style={styles.gridActionText}>Thông Báo</Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity style={styles.actionBtn} onPress={() => setNotifyModalVisible(true)}>
-        <Text style={styles.actionText}>🔔 Gửi Thông Báo Toàn Trường</Text>
+        <Text style={styles.actionText}>📣 Gửi Thông Báo Toàn Trường</Text>
       </TouchableOpacity>
 
       {/* Modal Broadcast */}
@@ -158,5 +178,27 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
-  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 }
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+
+  // Grid Styles
+  quickAccessGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  gridActionBtn: {
+    width: '48%',
+    backgroundColor: '#FAFAFA',
+    padding: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridActionIcon: { fontSize: 28, marginBottom: 8 },
+  gridActionText: { fontSize: 14, color: '#444', fontWeight: '600' },
 });

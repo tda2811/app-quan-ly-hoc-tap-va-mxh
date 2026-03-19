@@ -65,7 +65,7 @@ export default function AdminGroupsScreen() {
         setGroups(res.data.data);
       }
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể lấy danh sách nhóm chat.');
+      Alert.alert('Lỗi', 'Không thể lấy danh sách hội nhóm.');
     } finally {
       setLoading(false);
     }
@@ -181,7 +181,7 @@ export default function AdminGroupsScreen() {
   };
 
   const handleDeleteGroup = (id: number, gName: string) => {
-    Alert.alert('Xác Nhận Xóa', `Bạn có chắc chắn muốn xóa nhóm "${gName}"? Thao tác này sẽ xóa toàn bộ tin nhắn liên quan.`, [
+    Alert.alert('Xác Nhận Xóa', `Bạn có chắc chắn muốn xóa hội nhóm "${gName}"? Thao tác này sẽ xóa toàn bộ bài viết liên quan.`, [
       { text: 'Hủy', style: 'cancel' },
       { 
         text: 'Xóa', style: 'destructive', 
@@ -189,11 +189,11 @@ export default function AdminGroupsScreen() {
           try {
             const res = await axios.delete(`${API_URL}/admin/groups/${id}`);
             if (res.data.success) {
-              Alert.alert('Thành công', 'Đã xóa nhóm chat.');
+              Alert.alert('Thành công', 'Đã xóa hội nhóm.');
               fetchGroups();
             }
           } catch (error) {
-            Alert.alert('Lỗi', 'Không thể xóa nhóm chat.');
+            Alert.alert('Lỗi', 'Không thể xóa hội nhóm.');
           }
         } 
       }
@@ -238,11 +238,11 @@ export default function AdminGroupsScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
          <View style={styles.modalBackDrop}>
             <View style={styles.modalContent}>
-               <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Nhóm Chat' : 'Tạo Nhóm Chat'}</Text>
+               <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Hội Nhóm' : 'Tạo Hội Nhóm'}</Text>
                
                {!viewMembers ? (
                   <>
-                     <TextInput style={styles.input} placeholder="Tên nhóm chat... (Vd: Câu lạc bộ IT)" value={name} onChangeText={setName} />
+                     <TextInput style={styles.input} placeholder="Tên nhóm / cộng đồng... (Vd: Câu lạc bộ IT)" value={name} onChangeText={setName} />
                      
                      <Text style={{fontSize: 13, color: '#666', marginBottom: 6, marginTop: 10, alignSelf: 'flex-start'}}>Phân Loại Nhóm:</Text>
                      <View style={{flexDirection: 'row', marginBottom: 20, justifyContent: 'space-around', width: '100%'}}>

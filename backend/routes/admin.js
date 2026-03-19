@@ -291,28 +291,143 @@ router.post('/notifications/broadcast', async (req, res) => {
 });
 
 /**
- * Xóa bài viết (Quản lý bài viết)
+ * Quản lý bài viết (Posts)
  */
+router.get('/posts', async (req, res) => {
+    try {
+        const [posts] = await db.query(`
+            SELECT p.*, u.email, s.full_name, g.name as group_name 
+            FROM posts p 
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN students s ON u.id = s.user_id
+            LEFT JOIN groups_table g ON p.group_id = g.id
+            ORDER BY p.created_at DESC
+        `);
+        res.json({ success: true, data: posts });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách bài viết.' });
+    }
+});
+
 router.delete('/posts/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM posts WHERE id = ?', [id]);
         res.json({ success: true, message: 'Xóa bài viết thành công.' });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi xóa bài viết.' });
+        res.status(500).json({ success: false, message: 'Lỗi xóa bài viết.' });
     }
 });
 
 /**
- * Xóa Tài liệu (Quản lý tài liệu)
+ * Quản lý Tài liệu (Documents)
  */
+router.get('/documents', async (req, res) => {
+    try {
+        const [documents] = await db.query(`
+            SELECT d.*, s.name as subject_name, u.email as uploader_email
+            FROM documents d
+            JOIN subjects s ON d.subject_id = s.id
+            LEFT JOIN users u ON d.uploader_id = u.id
+            ORDER BY d.created_at DESC
+        `);
+        res.json({ success: true, data: documents });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách tài liệu.' });
+    }
+});
+
 router.delete('/documents/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM documents WHERE id = ?', [id]);
         res.json({ success: true, message: 'Xóa tài liệu thành công.' });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi xóa tài liệu.' });
+        res.status(500).json({ success: false, message: 'Lỗi xóa tài liệu.' });
+    }
+});
+
+/**
+ * Quản lý Lịch thi (Schedules / Exams)
+ */
+router.get('/exams', async (req, res) => {
+    try {
+        const [exams] = await db.query(`
+            SELECT s.*, sub.name as subject_name, u.email as teacher_email
+            FROM schedules s
+            JOIN subjects sub ON s.subject_id = sub.id
+            LEFT JOIN users u ON s.teacher_id = u.id
+            WHERE s.schedule_type = 'exam'
+            ORDER BY s.schedule_date DESC
+        `);
+        res.json({ success: true, data: exams });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách lịch thi.' });
+    }
+});
+
+router.post('/exams', async (req, res) => {
+    const { subject_id, teacher_id, room_name, schedule_date, start_time, end_time } = req.body;
+    try {
+        await db.query(`
+            INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
+            VALUES (?, ?, ?, 'exam', ?, ?, ?)
+        `, [subject_id, teacher_id || null, room_name, schedule_date, start_time, end_time]);
+        res.json({ success: true, message: 'Tạo lịch thi mới thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi tạo lịch thi.' });
+    }
+});
+
+router.put('/exams/:id', async (req, res) => {
+    const { id } = req.params;
+    const { subject_id, teacher_id, room_name, schedule_date, start_time, end_time } = req.body;
+    try {
+        await db.query(`
+            UPDATE schedules 
+            SET subject_id = ?, teacher_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?
+            WHERE id = ? AND schedule_type = 'exam'
+        `, [subject_id, teacher_id || null, room_name, schedule_date, start_time, end_time, id]);
+        res.json({ success: true, message: 'Cập nhật lịch thi thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật lịch thi.' });
+    }
+});
+
+router.delete('/exams/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("DELETE FROM schedules WHERE id = ? AND schedule_type = 'exam'", [id]);
+        res.json({ success: true, message: 'Xóa lịch thi thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi xóa lịch thi.' });
+    }
+});
+
+/**
+ * Quản lý Thông báo (Notifications)
+ */
+router.get('/notifications', async (req, res) => {
+    try {
+        const [notifications] = await db.query(`
+            SELECT n.*, u.email as user_email 
+            FROM notifications n
+            JOIN users u ON n.user_id = u.id
+            ORDER BY n.created_at DESC
+        `);
+        res.json({ success: true, data: notifications });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách thông báo.' });
+    }
+});
+
+router.delete('/notifications/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query('DELETE FROM notifications WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Xóa thông báo thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi xóa thông báo.' });
     }
 });
 
