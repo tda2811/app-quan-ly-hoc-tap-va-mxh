@@ -9,12 +9,17 @@ export default function AdminLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#D32F2F', // Màu đỏ cho Admin dễ phân biệt
+        tabBarActiveTintColor: '#D32F2F',
         headerShown: true,
         tabBarButton: HapticTab,
         tabBarStyle: Platform.select({
           ios: { position: 'absolute' },
-          default: {},
+          default: {
+            height: 60,
+            paddingBottom: 10,
+            paddingTop: 8,
+            backgroundColor: '#FFF',
+          },
         }),
       }}>
       <Tabs.Screen
@@ -39,6 +44,14 @@ export default function AdminLayout() {
           title: 'Lớp Học',
           headerTitle: 'Danh Sách Lớp & Ngành',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet.indent" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="groups"
+        options={{
+          title: 'Nhóm Chat',
+          headerTitle: 'Quản Lý Nhóm Chat',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bubbles.and.sparkles.fill" color={color} />,
         }}
       />
       <Tabs.Screen

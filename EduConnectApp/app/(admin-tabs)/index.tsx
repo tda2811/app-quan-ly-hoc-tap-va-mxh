@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -11,12 +11,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ studentCount: 0, teacherCount: 0, classCount: 0, majorCount: 0 });
   const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
-    Alert.alert('Đăng Xuất', 'Bạn có muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Đăng xuất', style: 'destructive', onPress: () => { logout(); router.replace('/'); } }
-    ]);
-  };
+  // Notification Broadcast Modal States
+  const [notifyModalVisible, setNotifyModalVisible] = useState(false);
+  const [nTitle, setNTitle] = useState('');
+  const [nMessage, setNMessage] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -34,6 +32,23 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
+  const handleSendBroadcast = async () => {
+    if (!nTitle || !nMessage) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin thông báo.');
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_URL}/admin/notifications/broadcast`, { title: nTitle, message: nMessage });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Đã gửi thông báo cho toàn bộ người dùng.');
+        setNotifyModalVisible(false);
+        setNTitle(''); setNMessage('');
+      }
+    } catch (error) {
+       Alert.alert('Lỗi', 'Gửi thông báo thất bại.');
+    }
+  };
+
   const displayStats = [
     { title: 'Tổng Sinh Viên', count: stats.studentCount, icon: '👥', color: '#E3F2FD' },
     { title: 'Giảng Viên', count: stats.teacherCount, icon: '👨‍🏫', color: '#E8F5E9' },
@@ -49,9 +64,6 @@ export default function AdminDashboard() {
             <Text style={styles.welcomeText}>Chào mừng Admin!</Text>
             <Text style={styles.emailText}>{user?.email || 'admin@educonnect.vn'}</Text>
           </View>
-          <TouchableOpacity style={styles.miniLogout} onPress={handleLogout}>
-             <Text style={styles.miniLogoutText}>Đăng xuất</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -73,9 +85,29 @@ export default function AdminDashboard() {
       <TouchableOpacity style={styles.actionBtn}>
         <Text style={styles.actionText}>📁 Quản Lý File / Tài Liệu</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.actionBtn}>
+      <TouchableOpacity style={styles.actionBtn} onPress={() => setNotifyModalVisible(true)}>
         <Text style={styles.actionText}>🔔 Gửi Thông Báo Toàn Trường</Text>
       </TouchableOpacity>
+
+      {/* Modal Broadcast */}
+      <Modal visible={notifyModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalBackDrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Phát Bản Tin Toàn Trường</Text>
+            <TextInput style={styles.input} placeholder="Tiêu đề thông báo..." value={nTitle} onChangeText={setNTitle} />
+            <TextInput style={[styles.input, {height: 80}]} multiline placeholder="Nội dung thông báo..." value={nMessage} onChangeText={setNMessage} />
+
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 16}}>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setNotifyModalVisible(false)}>
+                <Text style={styles.btnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSendBroadcast}>
+                <Text style={styles.btnText}>Gửi đi</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -118,5 +150,13 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: 15, color: '#444', fontWeight: '500' },
   miniLogout: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FFF', borderRadius: 6 },
-  miniLogoutText: { color: '#D32F2F', fontSize: 12, fontWeight: 'bold' }
+  miniLogoutText: { color: '#D32F2F', fontSize: 12, fontWeight: 'bold' },
+
+  // Modal Styles
+  modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#DDD', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
+  modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 }
 });

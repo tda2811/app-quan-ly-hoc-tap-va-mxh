@@ -4,11 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { AuthProvider } from '../src/context/AuthContext';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { AuthProvider, useAuth } from '../src/context/AuthContext';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -24,11 +20,13 @@ export default function RootLayout() {
 }
 
 const StackScreenStructure = () => {
+    const { user } = useAuth();
+    
     return (
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
+          {user && <Stack.Screen name="(tabs)" options={{ headerShown: false }} />}
+          {user && <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />}
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
     )

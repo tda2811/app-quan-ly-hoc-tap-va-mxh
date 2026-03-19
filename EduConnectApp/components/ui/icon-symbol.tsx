@@ -23,6 +23,9 @@ const MAPPING = {
   'person.fill': 'person',
   'message.fill': 'chat',
   'person.2.fill': 'group',
+  'chart.bar.fill': 'bar-chart',
+  'list.bullet.indent': 'school',
+  'bubbles.and.sparkles.fill': 'forum',
 } as IconMapping;
 
 /**

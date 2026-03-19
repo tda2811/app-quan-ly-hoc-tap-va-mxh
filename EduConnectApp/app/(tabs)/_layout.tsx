@@ -21,7 +21,12 @@ export default function TabLayout() {
             // Hiệu ứng mờ nền cho iOS
             position: 'absolute',
           },
-          default: {},
+          default: {
+            height: 60,                // Nâng chiều cao tab để nhường chỗ cho text
+            paddingBottom: 10,         // Chừa khoảng trống dưới cùng
+            paddingTop: 8,             // Khoảng trống trên
+            backgroundColor: '#FFF',
+          },
         }),
       }}>
       <Tabs.Screen

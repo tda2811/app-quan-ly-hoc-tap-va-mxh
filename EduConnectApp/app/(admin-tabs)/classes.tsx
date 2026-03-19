@@ -1,128 +1,208 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
 export default function AdminClassesScreen() {
-  const [classes, setClasses] = useState([]);
+  const [activeTab, setActiveTab] = useState<'classes' | 'majors'>('classes');
+  const [dataList, setDataList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   
-  // States for new class
+  // Class States
   const [name, setName] = useState('');
   const [cohort, setCohort] = useState('');
   const [majorId, setMajorId] = useState('');
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
+  // Major States
+  const [majorCode, setMajorCode] = useState('');
 
-  const fetchClasses = async () => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const [majorsList, setMajorsList] = useState([]);
+  const [majorDropdownVisible, setMajorDropdownVisible] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+    if (activeTab === 'classes') fetchMajors();
+  }, [activeTab]);
+
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/admin/classes`);
+      const endpoint = activeTab === 'classes' ? 'classes' : 'majors';
+      const res = await axios.get(`${API_URL}/admin/${endpoint}`);
       if (res.data && res.data.success) {
-        setClasses(res.data.data);
+        setDataList(res.data.data);
       }
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể kết nối Backend để lấy danh sách Lớp.');
+      Alert.alert('Lỗi', 'Không thể kết nối Backend.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddClass = async () => {
-    if (!name || !cohort || !majorId) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin.');
-      return;
-    }
+  const fetchMajors = async () => {
     try {
-      const res = await axios.post(`${API_URL}/admin/classes`, {
-        name,
-        major_id: parseInt(majorId),
-        cohort: parseInt(cohort)
-      });
-      if (res.data.success) {
-        Alert.alert('Thành công', 'Đã thêm lớp học mới!');
-        setModalVisible(false);
-        setName(''); setCohort(''); setMajorId('');
-        fetchClasses();
+      const res = await axios.get(`${API_URL}/admin/majors`);
+      if (res.data && res.data.success) {
+        setMajorsList(res.data.data);
       }
-    } catch (err) {
-      Alert.alert('Lỗi', 'Không thể thêm lớp học mới.');
+    } catch (e) {
+      console.log('Lỗi fetch majors dropdown');
     }
   };
 
-  const handleDeleteClass = (id: number, name: string) => {
+  const openEditModal = (item: any) => {
+    setIsEditing(true);
+    setSelectedId(item.id);
+    if (activeTab === 'classes') {
+      setName(item.name);
+      setCohort(item.cohort.toString());
+      setMajorId(item.major_id ? item.major_id.toString() : '');
+    } else {
+      setName(item.name);
+      setMajorCode(item.code);
+    }
+    setModalVisible(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      const endpoint = activeTab === 'classes' ? 'classes' : 'majors';
+      const payload = activeTab === 'classes' 
+        ? { name, major_id: parseInt(majorId), cohort: parseInt(cohort) }
+        : { name, code: majorCode };
+
+      if (!name || (activeTab === 'classes' && (!cohort || !majorId)) || (activeTab === 'majors' && !majorCode)) {
+         Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin.'); return;
+      }
+
+      if (isEditing && selectedId) {
+        await axios.put(`${API_URL}/admin/${endpoint}/${selectedId}`, payload);
+        Alert.alert('Thành công', 'Cập nhật hoàn tất!');
+      } else {
+        await axios.post(`${API_URL}/admin/${endpoint}`, payload);
+        Alert.alert('Thành công', 'Thêm mới thành công!');
+      }
+      closeModal();
+      fetchData();
+    } catch (err) {
+      Alert.alert('Lỗi', 'Thao tác thất bại.');
+    }
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setIsEditing(false);
+    setSelectedId(null);
+    setName(''); setCohort(''); setMajorId(''); setMajorCode('');
+  };
+
+  const handleDelete = (id: number, title: string) => {
     Alert.alert(
-      'Xóa Lớp Học',
-      `Bạn có chắc chắn muốn xóa lớp ${name}?`,
+      'Xác Nhận Xóa',
+      `Xóa ${activeTab === 'classes' ? 'lớp' : 'ngành'} ${title}?`,
       [
         { text: 'Hủy', style: 'cancel' },
         { 
-          text: 'Xóa', 
-          style: 'destructive', 
+          text: 'Xóa', style: 'destructive', 
           onPress: async () => {
-            try {
-              const res = await axios.delete(`${API_URL}/admin/classes/${id}`);
-              if (res.data.success) {
-                Alert.alert('Thành công', 'Đã xóa lớp học.');
-                fetchClasses();
-              }
-            } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa lớp học.');
-            }
-          } 
+             try {
+               const endpoint = activeTab === 'classes' ? 'classes' : 'majors';
+               await axios.delete(`${API_URL}/admin/${endpoint}/${id}`);
+               fetchData();
+             } catch (e) { Alert.alert('Lỗi', 'Xóa thất bại.'); }
+          }
         }
       ]
     );
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.card} onLongPress={() => handleDeleteClass(item.id, item.name)}>
+    <TouchableOpacity style={styles.card} onPress={() => openEditModal(item)} onLongPress={() => handleDelete(item.id, item.name)}>
       <Text style={styles.cardName}>{item.name}</Text>
-      <Text style={styles.cardSub}>Khóa học (Cohort): <Text style={{fontWeight: 'bold'}}>{item.cohort}</Text></Text>
-      <Text style={styles.cardSub}>Major ID: {item.major_id || 'Chưa gán'}</Text>
+      {activeTab === 'classes' ? (
+        <>
+          <Text style={styles.cardSub}>Khóa học: <Text style={{fontWeight: 'bold'}}>{item.cohort}</Text></Text>
+          <Text style={styles.cardSub}>Ngành: <Text style={{fontWeight: 'bold', color: '#B71C1C'}}>{item.major_name ? `${item.major_name} (${item.major_code})` : 'Chưa gán'}</Text></Text>
+         </>
+      ) : (
+        <Text style={styles.cardSub}>Mã ngành: <Text style={{fontWeight: 'bold'}}>{item.code}</Text></Text>
+      )}
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionHeader}>Danh Sách Lớp Học</Text>
+      <View style={styles.tabHeader}>
+        <TouchableOpacity style={[styles.tabBtn, activeTab === 'classes' && styles.tabBtnActive]} onPress={() => setActiveTab('classes')}>
+          <Text style={[styles.tabBtnText, activeTab === 'classes' && styles.tabBtnTextActive]}>Lớp Học</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabBtn, activeTab === 'majors' && styles.tabBtnActive]} onPress={() => setActiveTab('majors')}>
+          <Text style={[styles.tabBtnText, activeTab === 'majors' && styles.tabBtnTextActive]}>Khoa/Ngành</Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
-        <ActivityIndicator size="large" color="#D32F2F" />
+        <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
-          data={classes}
+          data={dataList}
           keyExtractor={(item, index) => index.toString()}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888' }}>Chưa có lớp nào</Text>}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888' }}>Trống</Text>}
         />
       )}
-      {/* Modal Thêm Lớp */}
+
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalBackDrop}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Thêm Lớp Học Mới</Text>
+            <Text style={styles.modalTitle}>{isEditing ? 'Cập Nhật' : 'Thêm Mới'} {activeTab === 'classes' ? 'Lớp' : 'Khoa/Ngành'}</Text>
             
-            <TextInput style={styles.input} placeholder="Tên Lớp (Ví dụ: 12A1, AT16...)" value={name} onChangeText={setName} />
-            <TextInput style={styles.input} placeholder="Khóa học (Ví dụ: 16)" keyboardType="numeric" value={cohort} onChangeText={setCohort} />
-            <TextInput style={styles.input} placeholder="Major ID (Tạm thời nhập ID)" keyboardType="numeric" value={majorId} onChangeText={setMajorId} />
+            <TextInput style={styles.input} placeholder="Tên gọi" value={name} onChangeText={setName} />
+            {activeTab === 'classes' ? (
+              <>
+                <TextInput style={styles.input} placeholder="Khóa học (Ví dụ: 16)" keyboardType="numeric" value={cohort} onChangeText={setCohort} />
+                
+                {/* Custom Picker Giả lập */}
+                <TouchableOpacity style={styles.inputPicker} onPress={() => setMajorDropdownVisible(!majorDropdownVisible)}>
+                  <Text style={{color: majorId ? '#000' : '#888'}}>
+                    {majorId ? (majorsList.find((m: any) => m.id.toString() === majorId) as any)?.name || 'Khoa/Ngành gán' : 'Chọn Khoa/Ngành'}
+                  </Text>
+                </TouchableOpacity>
+
+                {majorDropdownVisible && (
+                  <View style={styles.dropdownOverlay}>
+                    <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+                      {majorsList.map((m: any) => (
+                        <TouchableOpacity key={m.id} style={styles.dropdownItem} onPress={() => { setMajorId(m.id.toString()); setMajorDropdownVisible(false); }}>
+                          <Text style={{fontSize: 14}}>{m.name} ({m.code})</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </>
+            ) : (
+                <TextInput style={styles.input} placeholder="Mã Ngành (Ví dụ: AT)" value={majorCode} onChangeText={setMajorCode} />
+            )}
 
             <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 16}}>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={closeModal}>
                 <Text style={styles.btnText}>Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleAddClass}>
-                <Text style={styles.btnText}>Thêm</Text>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSave}>
+                <Text style={styles.btnText}>{isEditing ? 'Cập nhật' : 'Thêm'}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={() => { setIsEditing(false); setModalVisible(true); }}>
          <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
     </View>
@@ -131,7 +211,12 @@ export default function AdminClassesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  sectionHeader: { fontSize: 16, fontWeight: 'bold', padding: 16, backgroundColor: '#FEF1F1', color: '#B71C1C' },
+  tabHeader: { flexDirection: 'row', backgroundColor: '#FEF1F1', borderBottomWidth: 1, borderBottomColor: '#F5D3D3' },
+  tabBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  tabBtnActive: { borderBottomWidth: 3, borderBottomColor: '#B71C1C' },
+  tabBtnText: { fontSize: 14, fontWeight: 'bold', color: '#666' },
+  tabBtnTextActive: { color: '#B71C1C' },
+  
   card: {
     backgroundColor: '#FAFAFA',
     padding: 16,
@@ -155,5 +240,10 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
-  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 }
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+
+  // Picker Styles
+  inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
+  dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' }
 });
