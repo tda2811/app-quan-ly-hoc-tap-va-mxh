@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, ScrollView, Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -228,9 +228,10 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 17, fontWeight: 'bold', color: '#D32F2F' },
   cardSub: { fontSize: 14, color: '#555', marginTop: 4 },
   fab: {
-    position: 'absolute', right: 20, bottom: 20,
-    backgroundColor: '#D32F2F', paddingHorizontal: 16, paddingVertical: 12,
-    borderRadius: 24, elevation: 3, shadowOpacity: 0.2
+    position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 80 : 20,
+    backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28,
+    justifyContent: 'center', alignItems: 'center', elevation: 5,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }
   },
   fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   

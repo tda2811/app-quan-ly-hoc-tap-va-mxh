@@ -4,8 +4,17 @@ import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 import { Stack, useRouter } from 'expo-router';
 
+interface NotificationItem {
+  id: number | string;
+  title: string;
+  type: string;
+  user_email?: string;
+  content: string;
+  created_at: string;
+}
+
 export default function AdminNotificationsScreen() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +32,7 @@ export default function AdminNotificationsScreen() {
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number | string) => {
     Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa thông báo này?', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -44,7 +53,7 @@ export default function AdminNotificationsScreen() {
     ]);
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: NotificationItem }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{item.title}</Text>

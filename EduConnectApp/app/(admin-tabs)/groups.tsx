@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   deleteBtn: { backgroundColor: '#FFEAEA', borderWidth: 1, borderColor: '#D32F2F', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   deleteBtnText: { color: '#D32F2F', fontSize: 13, fontWeight: 'bold' },
   
-  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#D32F2F', width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', elevation: 4 },
+  fab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 80 : 20, right: 20, backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } },
   fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
 
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },

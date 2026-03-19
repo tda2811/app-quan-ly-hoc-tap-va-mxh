@@ -10,6 +10,7 @@ export default function AdminProfileScreen() {
 
   const confirmLogout = () => {
     setModalVisible(false);
+    const delay = Platform.OS === 'web' ? 300 : 800;
     setTimeout(() => {
       logout();
       if (Platform.OS === 'web') {
@@ -17,7 +18,7 @@ export default function AdminProfileScreen() {
       } else {
         router.replace('/');
       }
-    }, 300);
+    }, delay);
   };
 
   return (
