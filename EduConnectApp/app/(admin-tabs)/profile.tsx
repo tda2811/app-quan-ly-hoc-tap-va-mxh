@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 
@@ -10,19 +10,20 @@ export default function AdminProfileScreen() {
 
   const confirmLogout = () => {
     setModalVisible(false);
-    const delay = Platform.OS === 'web' ? 300 : 800;
-    setTimeout(() => {
+    if (Platform.OS === 'web') {
       logout();
-      if (Platform.OS === 'web') {
-        window.location.href = '/';
-      } else {
-        router.replace('/');
-      }
-    }, delay);
+      window.location.href = '/';
+    } else {
+      // Trên Mobile: Chuyển hướng trước cho mượt routes, sau đó mới clear trạng thái
+      router.replace('/');
+      setTimeout(() => {
+        logout();
+      }, 400);
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{user?.email ? user.email[0].toUpperCase() : 'A'}</Text>
       </View>
@@ -58,12 +59,19 @@ export default function AdminProfileScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  scrollContent: { 
+    flexGrow: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    paddingVertical: 20, 
+    paddingBottom: Platform.OS === 'ios' ? 100 : 40 
+  },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#D32F2F', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   avatarText: { fontSize: 32, fontWeight: 'bold', color: '#FFF' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#D32F2F' },

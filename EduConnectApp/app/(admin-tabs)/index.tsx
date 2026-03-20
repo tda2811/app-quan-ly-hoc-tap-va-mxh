@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Platform } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.headerBox}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
@@ -134,6 +134,10 @@ export default function AdminDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
+  scrollContent: { 
+    flexGrow: 1, 
+    paddingBottom: Platform.OS === 'ios' ? 100 : 40 
+  },
   headerBox: { padding: 20, backgroundColor: '#D32F2F', paddingBottom: 40 },
   welcomeText: { fontSize: 22, fontWeight: 'bold', color: '#FFF' },
   emailText: { fontSize: 14, color: '#FFD54F', marginTop: 4 },
