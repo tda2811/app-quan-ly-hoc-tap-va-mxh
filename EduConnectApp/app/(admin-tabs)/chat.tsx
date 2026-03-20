@@ -6,7 +6,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { io } from 'socket.io-client';
 
-export default function ChatScreen() {
+export default function AdminChatScreen() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,14 +122,14 @@ export default function ChatScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Tin Nhắn</Text>
+        <Text style={styles.title}>Tin Nhắn Admin</Text>
         <TouchableOpacity onPress={openNewChat}>
-          <IconSymbol name={"plus" as any} size={28} color="#B71C1C" />
+          <IconSymbol name={"plus" as any} size={28} color="#D32F2F" />
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#B71C1C" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
       ) : conversations.length === 0 ? (
         <View style={styles.placeholder}>
           <Text style={styles.placeholderText}>Chưa có cuộc trò chuyện nào.</Text>
@@ -216,10 +216,10 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA', padding: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#B71C1C' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#D32F2F' },
   placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   placeholderText: { color: '#999', marginBottom: 12 },
-  startBtn: { backgroundColor: '#B71C1C', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  startBtn: { backgroundColor: '#D32F2F', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   startBtnText: { color: '#FFF', fontWeight: 'bold' },
   chatHeader: { flexDirection: 'row', backgroundColor: '#FFF', padding: 12, borderRadius: 10, marginBottom: 10, alignItems: 'center', elevation: 1 },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#CCC', justifyContent: 'center', alignItems: 'center' },
@@ -231,11 +231,11 @@ const styles = StyleSheet.create({
   convTitle: { fontSize: 18, fontWeight: 'bold' },
   msgContainer: { maxWidth: '75%', padding: 10, borderRadius: 12, marginBottom: 10 },
   msgTheirs: { alignSelf: 'flex-start', backgroundColor: '#E0E0E0' },
-  msgMine: { alignSelf: 'flex-end', backgroundColor: '#B71C1C' },
+  msgMine: { alignSelf: 'flex-end', backgroundColor: '#D32F2F' },
   msgText: { fontSize: 15, color: '#333' },
   inputBar: { flexDirection: 'row', padding: 10, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#EEE' },
   inputField: { flex: 1, backgroundColor: '#F0F2F5', height: 44, borderRadius: 20, paddingHorizontal: 15, fontSize: 15 },
-  sendBtn: { width: 44, height: 44, backgroundColor: '#B71C1C', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
+  sendBtn: { width: 44, height: 44, backgroundColor: '#D32F2F', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   
   // Modal Settings
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },

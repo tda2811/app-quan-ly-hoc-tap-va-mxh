@@ -55,6 +55,14 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Tin Nhắn',
+          headerTitle: 'Trò Chuyện Hệ Thống',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Cá Nhân',

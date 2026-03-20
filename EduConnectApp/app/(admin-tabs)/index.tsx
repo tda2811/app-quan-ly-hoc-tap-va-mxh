@@ -4,6 +4,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
+import { IconSymbol } from '../../components/ui/icon-symbol';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -50,10 +51,10 @@ export default function AdminDashboard() {
   };
 
   const displayStats = [
-    { title: 'Tổng Sinh Viên', count: stats.studentCount, icon: '👥', color: '#E3F2FD' },
-    { title: 'Giảng Viên', count: stats.teacherCount, icon: '👨‍🏫', color: '#E8F5E9' },
-    { title: 'Lớp Học', count: stats.classCount, icon: '🏫', color: '#FFF3E0' },
-    { title: 'Ngành Học', count: stats.majorCount, icon: '🎓', color: '#F3E5F5' },
+    { title: 'Tổng Sinh Viên', count: stats.studentCount, icon: 'person.2.fill', color: '#E3F2FD' },
+    { title: 'Giảng Viên', count: stats.teacherCount, icon: 'person.fill', color: '#E8F5E9' },
+    { title: 'Lớp Học', count: stats.classCount, icon: 'book.fill', color: '#FFF3E0' },
+    { title: 'Ngành Học', count: stats.majorCount, icon: 'list.bullet.indent', color: '#F3E5F5' },
   ];
 
   return (
@@ -73,7 +74,7 @@ export default function AdminDashboard() {
         <View style={styles.statsGrid}>
           {displayStats.map((stat, index) => (
             <View key={index} style={[styles.statCard, { backgroundColor: stat.color }]}>
-              <Text style={styles.statIcon}>{stat.icon}</Text>
+              <IconSymbol name={stat.icon as any} size={28} color="#333" style={{marginBottom: 8}} />
               <Text style={styles.statCount}>{stat.count}</Text>
               <Text style={styles.statTitle}>{stat.title}</Text>
             </View>
@@ -85,22 +86,22 @@ export default function AdminDashboard() {
       
       <View style={styles.quickAccessGrid}>
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/documents')}>
-          <Text style={styles.gridActionIcon}>📁</Text>
+          <IconSymbol name={"folder.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Quản Lý File</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/exams')}>
-          <Text style={styles.gridActionIcon}>📅</Text>
+          <IconSymbol name={"calendar.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Lịch Thi</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/posts')}>
-          <Text style={styles.gridActionIcon}>📝</Text>
+          <IconSymbol name={"doc.text.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Bài Viết</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/notifications')}>
-          <Text style={styles.gridActionIcon}>🔔</Text>
+          <IconSymbol name={"bell.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Thông Báo</Text>
         </TouchableOpacity>
       </View>

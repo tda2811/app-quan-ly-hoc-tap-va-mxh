@@ -1,6 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+
+const upload = multer({ storage });
 
 router.get('/stats', async (req, res) => {
     try {
@@ -346,6 +361,27 @@ router.get('/documents', async (req, res) => {
         res.json({ success: true, data: documents });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy danh sách tài liệu.' });
+    }
+});
+
+router.post('/documents', upload.single('file'), async (req, res) => {
+    const { title, subject_id, uploader_id } = req.body;
+    let file_url = '';
+    let file_type = 'file';
+
+    if (req.file) {
+        file_url = `/uploads/${req.file.filename}`;
+        file_type = path.extname(req.file.originalname).substring(1); 
+    }
+
+    try {
+        await db.query(
+            'INSERT INTO documents (title, subject_id, uploader_id, file_url, file_type) VALUES (?, ?, ?, ?, ?)',
+            [title, subject_id, uploader_id || null, file_url, file_type]
+        );
+        res.json({ success: true, message: 'Đăng tài liệu thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi đăng tài liệu: ' + error.message });
     }
 });
 

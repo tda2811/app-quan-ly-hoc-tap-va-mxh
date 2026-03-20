@@ -4,8 +4,21 @@ import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 import { Stack, useRouter } from 'expo-router';
 
+interface Post {
+  id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+  group_id?: number;
+  email: string;
+  full_name?: string;
+  group_name?: string;
+  likes_count?: number;
+  comments_count?: number;
+}
+
 export default function AdminPostsScreen() {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -24,7 +37,7 @@ export default function AdminPostsScreen() {
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number) => {
     Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa bài viết này?', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -45,7 +58,7 @@ export default function AdminPostsScreen() {
     ]);
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: Post }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.authorName}>{item.full_name || item.email}</Text>
