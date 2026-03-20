@@ -19,15 +19,32 @@ export default function RootLayout() {
   );
 }
 
+import { useEffect } from 'react';
+import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
+
 const StackScreenStructure = () => {
-    const { user } = useAuth();
-    
-    return (
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          {user && <Stack.Screen name="(tabs)" options={{ headerShown: false }} />}
-          {user && <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />}
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-    )
+  const { user } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+  const navigationState = useRootNavigationState();
+
+  useEffect(() => {
+    if (!navigationState?.key) return;
+
+    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === '(admin-tabs)';
+
+    if (!user && inAuthGroup) {
+      router.replace('/login');
+    }
+  }, [user, segments, navigationState?.key]);
+
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    </Stack>
+  )
 }

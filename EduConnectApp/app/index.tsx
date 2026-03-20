@@ -1,8 +1,17 @@
+import React from 'react';
 import { Redirect } from 'expo-router';
-import LoginScreen from '../src/screens/LoginScreen';
+import { useAuth } from '../src/context/AuthContext';
 
 export default function EntryScreen() {
-  // Màn hình khởi điểm của App sẽ là Màn hình Đăng Nhập
-  // Giao diện này không có TabMenu ở dưới vì nó nằm ngoài folder (tabs)
-  return <LoginScreen />;
+  const { user } = useAuth();
+
+  if (user) {
+    if (user.role === 'admin') {
+      return <Redirect href="/(admin-tabs)" />;
+    } else {
+      return <Redirect href="/(tabs)" />;
+    }
+  }
+
+  return <Redirect href="/login" />;
 }

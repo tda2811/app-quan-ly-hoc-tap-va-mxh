@@ -61,6 +61,18 @@ router.get('/classes', async (req, res) => {
 });
 
 /**
+ * Danh mục Môn học (Subjects)
+ */
+router.get('/subjects', async (req, res) => {
+    try {
+        const [subjects] = await db.query('SELECT * FROM subjects');
+        res.json({ success: true, data: subjects });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách môn học.' });
+    }
+});
+
+/**
  * Quản lý Nhóm Chat (Groups)
  */
 router.get('/groups', async (req, res) => {

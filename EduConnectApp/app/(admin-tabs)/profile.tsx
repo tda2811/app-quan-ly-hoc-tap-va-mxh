@@ -10,16 +10,8 @@ export default function AdminProfileScreen() {
 
   const confirmLogout = () => {
     setModalVisible(false);
-    if (Platform.OS === 'web') {
-      logout();
-      window.location.href = '/';
-    } else {
-      // Trên Mobile: Chuyển hướng trước cho mượt routes, sau đó mới clear trạng thái
-      router.replace('/');
-      setTimeout(() => {
-        logout();
-      }, 400);
-    }
+    logout();
+    router.replace('/');
   };
 
   return (
