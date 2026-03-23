@@ -8,6 +8,7 @@ const db = require('./config/db'); // 🆕 Cần cho socket lưu tin nhắn
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const chatRoutes = require('./routes/chat'); // 🆕
+const attendanceRoutes = require('./routes/attendance'); // 🆕
 
 const app = express();
 const server = http.createServer(app); // 🆕
@@ -22,6 +23,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes); // 🆕
+app.use('/api/attendance', attendanceRoutes); // 🆕
 
 // Test ping
 app.get('/api/ping', (req, res) => {

@@ -401,44 +401,68 @@ router.delete('/documents/:id', async (req, res) => {
 router.get('/exams', async (req, res) => {
     try {
         const [exams] = await db.query(`
-            SELECT s.*, sub.name as subject_name, u.email as teacher_email
+            SELECT s.*, sub.name as subject_name, 
+                   GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
+                   GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
             FROM schedules s
             JOIN subjects sub ON s.subject_id = sub.id
-            LEFT JOIN users u ON s.teacher_id = u.id
+            LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
+            LEFT JOIN users u ON st.teacher_id = u.id
             WHERE s.schedule_type = 'exam'
+            GROUP BY s.id
             ORDER BY s.schedule_date DESC
         `);
         res.json({ success: true, data: exams });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách lịch thi.' });
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách lịch thi: ' + error.message });
     }
 });
 
 router.post('/exams', async (req, res) => {
-    const { subject_id, teacher_id, room_name, schedule_date, start_time, end_time } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time } = req.body;
     try {
-        await db.query(`
+        const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
+
+        const [result] = await db.query(`
             INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
             VALUES (?, ?, ?, 'exam', ?, ?, ?)
-        `, [subject_id, teacher_id || null, room_name, schedule_date, start_time, end_time]);
+        `, [subject_id, firstTeacherId, room_name, schedule_date, start_time, end_time]);
+        
+        const scheduleId = result.insertId;
+
+        if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
+            const values = teacher_ids.map(tId => [scheduleId, tId]);
+            await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES ?', [values]);
+        }
+
         res.json({ success: true, message: 'Tạo lịch thi mới thành công.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi tạo lịch thi.' });
+        res.status(500).json({ success: false, message: 'Lỗi tạo lịch thi: ' + error.message });
     }
 });
 
 router.put('/exams/:id', async (req, res) => {
     const { id } = req.params;
-    const { subject_id, teacher_id, room_name, schedule_date, start_time, end_time } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time } = req.body;
     try {
+        const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
+
         await db.query(`
             UPDATE schedules 
             SET subject_id = ?, teacher_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?
             WHERE id = ? AND schedule_type = 'exam'
-        `, [subject_id, teacher_id || null, room_name, schedule_date, start_time, end_time, id]);
+        `, [subject_id, firstTeacherId, room_name, schedule_date, start_time, end_time, id]);
+
+        await db.query('DELETE FROM schedule_teachers WHERE schedule_id = ?', [id]);
+
+        if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
+            const values = teacher_ids.map(tId => [id, tId]);
+            await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES ?', [values]);
+        }
+
         res.json({ success: true, message: 'Cập nhật lịch thi thành công.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi cập nhật lịch thi.' });
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật lịch thi: ' + error.message });
     }
 });
 
@@ -451,6 +475,8 @@ router.delete('/exams/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi xóa lịch thi.' });
     }
 });
+
+
 
 /**
  * Quản lý Thông báo (Notifications)

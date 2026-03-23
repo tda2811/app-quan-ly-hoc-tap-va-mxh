@@ -9,7 +9,7 @@ interface ExamItem {
   id: number | string;
   subject_id: number | string;
   subject_name?: string;
-  teacher_id?: number | string | null;
+  teacher_ids?: string;
   teacher_email?: string;
   room_name: string;
   schedule_date: string;
@@ -25,7 +25,13 @@ export default function AdminExamsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<number | string | null>(null);
   const [subjectId, setSubjectId] = useState('');
-  const [teacherId, setTeacherId] = useState('');
+  const [teacherIds, setTeacherIds] = useState<string[]>([]);
+
+  const toggleTeacher = (id: string) => {
+    setTeacherIds(prev => 
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    );
+  };
   const [roomName, setRoomName] = useState('');
   const [scheduleDate, setScheduleDate] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -73,7 +79,7 @@ export default function AdminExamsScreen() {
   const openAddModal = () => {
     setEditingId(null);
     setSubjectId('');
-    setTeacherId('');
+    setTeacherIds([]);
     setRoomName('');
     setScheduleDate('');
     setStartTime('');
@@ -86,7 +92,7 @@ export default function AdminExamsScreen() {
   const openEditModal = (exam: ExamItem) => {
     setEditingId(exam.id);
     setSubjectId(String(exam.subject_id));
-    setTeacherId(exam.teacher_id ? String(exam.teacher_id) : '');
+    setTeacherIds(exam.teacher_ids ? exam.teacher_ids.split(',').filter(d => d) : []);
     setRoomName(exam.room_name);
     setScheduleDate(exam.schedule_date.split('T')[0]);
     setStartTime(exam.start_time);
@@ -103,7 +109,7 @@ export default function AdminExamsScreen() {
     try {
       const payload = {
         subject_id: subjectId,
-        teacher_id: teacherId || null,
+        teacher_ids: teacherIds,
         room_name: roomName,
         schedule_date: scheduleDate,
         start_time: startTime,
@@ -221,16 +227,19 @@ export default function AdminExamsScreen() {
 
             {/* Dropdown Giám Thị */}
             <TouchableOpacity style={styles.inputPicker} onPress={() => setTeacherDropdownVisible(!teacherDropdownVisible)}>
-              <Text style={{color: teacherId ? '#000' : '#888'}}>
-                {teacherId ? (teachersList.find((t: any) => t.id.toString() === teacherId) as any)?.full_name || (teachersList.find((t: any) => t.id.toString() === teacherId) as any)?.email || 'Giám thị gán' : 'Chọn Giám thị (Tùy chọn)'}
+              <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
+                {teacherIds.length > 0 
+                  ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
+                  : 'Chọn Giám thị (Tùy chọn)'}
               </Text>
             </TouchableOpacity>
 
             {teacherDropdownVisible && (
               <View style={styles.dropdownOverlay}>
                 <FlatList nestedScrollEnabled style={{maxHeight: 150}} data={teachersList} keyExtractor={(t: any) => t.id.toString()} renderItem={({item}: {item: any}) => (
-                  <TouchableOpacity style={styles.dropdownItem} onPress={() => { setTeacherId(item.id.toString()); setTeacherDropdownVisible(false); }}>
+                  <TouchableOpacity style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
                     <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
+                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
                   </TouchableOpacity>
                 )} />
               </View>
