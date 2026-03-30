@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Thay bằng IP hoặc Domain Backend thực tế của bạn (IP của thiết bị chạy Máy chủ, Vd: 192.168.1.10)
-export const API_URL = 'http://192.168.1.17:3000/api';
+export const API_URL = 'http://192.168.1.8:3000/api';
 // export const API_URL = 'http://127.0.0.1:3000/api';
 
 export const loginUser = async (email, password) => {

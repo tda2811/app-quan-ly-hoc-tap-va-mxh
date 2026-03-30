@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   chatType: { fontSize: 12, color: '#666', marginTop: 2 },
   
   // Conversation View Styles
-  convHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: '#EEE', alignItems: 'center', backgroundColor: '#FFF' },
+  convHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, paddingTop: Platform.OS === 'ios' ? 45 : 20, borderBottomWidth: 1, borderColor: '#EEE', alignItems: 'center', backgroundColor: '#FFF' },
   convTitle: { fontSize: 18, fontWeight: 'bold' },
   msgContainer: { maxWidth: '75%', padding: 10, borderRadius: 12, marginBottom: 10 },
   msgTheirs: { alignSelf: 'flex-start', backgroundColor: '#E0E0E0' },
