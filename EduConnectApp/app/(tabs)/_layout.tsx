@@ -46,11 +46,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="notifications"
         options={{
-          title: 'Hội Nhóm',
-          headerTitle: 'Cộng Đồng Sinh Viên',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+          title: 'Thông báo',
+          headerTitle: 'Thông Báo Của Bạn',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell.fill" color={color} />,
         }}
       />
       <Tabs.Screen

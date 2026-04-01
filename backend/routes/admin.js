@@ -506,6 +506,23 @@ router.delete('/notifications/:id', async (req, res) => {
 });
 
 /**
+ * Gửi thông báo toàn hệ thống
+ */
+router.post('/notifications/broadcast', async (req, res) => {
+    const { title, message } = req.body;
+    try {
+        const [users] = await db.query('SELECT id FROM users WHERE status = "active"');
+        const tasks = users.map(u => 
+            db.query('INSERT INTO notifications (user_id, type, title, content) VALUES (?, "system", ?, ?)', [u.id, title, message])
+        );
+        await Promise.all(tasks);
+        res.json({ success: true, message: `Đã gửi thông báo cho ${users.length} người dùng.` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi gửi thông báo: ' + error.message });
+    }
+});
+
+/**
  * Cập nhật Ngành học
  */
 router.put('/majors/:id', async (req, res) => {

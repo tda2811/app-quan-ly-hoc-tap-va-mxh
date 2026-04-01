@@ -56,7 +56,7 @@ export default function LMSScreen() {
         const res = await axios.get(`${API_URL}/attendance/schedules?teacher_id=${user.id}`);
         if (res.data.success) setSchedules(res.data.data);
       } else {
-        const res = await axios.get(`${API_URL}/admin/exams`);
+        const res = await axios.get(`${API_URL}/student/schedules?student_id=${user.id}`);
         if (res.data.success) setSchedules(res.data.data);
       }
     } catch (err) {

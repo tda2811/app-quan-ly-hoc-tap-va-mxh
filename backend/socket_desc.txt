@@ -1,0 +1,37 @@
+📌 MÔ TẢ HỆ THỐNG CHAT REAL-TIME (SOCKET.IO)
+--------------------------------------------------
+
+1. Tổng Quan Kiến Trúc
+- Back-end: Sử dụng Node.js, Express và thư viện `socket.io`.
+- Front-end: Ứng dụng React Native sử dụng `socket.io-client`.
+- Cơ sở dữ liệu: Dựa trên cấu trúc MySQL trong `database_schema.sql` (bảng `conversations`, `conversation_participants`, `messages`).
+
+2. Cơ Chế Kết Nối
+- Khi ứng dụng khởi động trang Chat, Socket Client sẽ kết nối đến máy chủ trên cổng API gốc (vd: http://192.168.1.17:3000).
+- Duy trì 1 đối tượng socket sống để nghe và phát đi các sự kiện trực tiếp.
+
+3. Các Sự Kiện (Events) Socket Được Hỗ Trợ
+
+🔴 Event: `join_chat` (Gửi từ Client -> Server)
+- Tác dụng: Client thông báo muốn truy cập một phòng chat.
+- Payload: `conversationId` (ID phòng chat).
+- Server xử lý: Chạy `socket.join(conversationId)` để nhóm người dùng vào luồng giao tiếp độc lập.
+
+🔵 Event: `send_message` (Gửi từ Client -> Server)
+- Tác dụng: Người dùng gửi đi tin nhắn.
+- Payload:
+  {
+    "conversation_id": number,
+    "sender_id": string (UUID),
+    "content": "Nội dung tin nhắn..."
+  }
+- Server xử lý:
+  1. Ghi (INSERT) tin nhắn vào bảng `messages` trong MySQL để lưu trữ lịch sử.
+  2. Bắn sự kiện ngược lại `receive_message` cho toàn bộ các Socket đang có mặt trong Room `conversation_id`.
+
+🟢 Event: `receive_message` (Lắng nghe từ Server -> Client)
+- Trạng thái: Lắng nghe ở ứng dụng React Native.
+- Tác dụng: Nhận gói tin nhắn trực tiếp phát từ thành viên khác ngay lập tức và đẩy vào mảng `messages` State trên giao diện hiển thị.
+
+4. luồng Fetch lịch sử kết hợp HTTP (REST)
+- Để tải danh sách Chat (Conversations list) và Cuộn xem tin nhắn cũ, hệ thống vẫn gọi GET REST API dể tối ưu tải nhanh hơn thay vì đẩy tất cả qua socket. Chỉ dùng socket truyền tín hiệu LIVE.

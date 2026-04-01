@@ -63,19 +63,32 @@ export default function FeedScreen() {
     }
   };
 
+  const handleLike = async (postId: number) => {
+    try {
+      const res = await axios.post(`${API_URL}/student/posts/like`, { user_id: user.id, post_id: postId });
+      if (res.data.success) fetchPosts();
+    } catch (err) {
+      console.error('Lỗi like:', err);
+    }
+  };
+
   const renderItem = ({ item }: { item: PostItem }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.posterName}>{item.full_name || 'Người dùng ấn danh'}</Text>
+          <Text style={styles.posterName}>{item.full_name || 'Người dùng ẩn danh'}</Text>
           <Text style={styles.posterEmail}>{item.email}</Text>
         </View>
         {item.group_name && <Text style={styles.groupBadge}>{item.group_name}</Text>}
       </View>
       <Text style={styles.content}>{item.content}</Text>
       <View style={styles.cardFooter}>
-         <Text style={styles.footerText}>👍 {item.likes_count} Thích</Text>
-         <Text style={styles.footerText}>💬 {item.comments_count} Bình luận</Text>
+         <TouchableOpacity style={styles.footerAction} onPress={() => handleLike(item.id)}>
+            <Text style={styles.footerText}>👍 {item.likes_count} Thích</Text>
+         </TouchableOpacity>
+         <TouchableOpacity style={styles.footerAction}>
+            <Text style={styles.footerText}>💬 {item.comments_count} Bình luận</Text>
+         </TouchableOpacity>
       </View>
     </View>
   );
@@ -145,7 +158,8 @@ const styles = StyleSheet.create({
   groupBadge: { backgroundColor: '#FFEBEE', color: '#D32F2F', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontSize: 11, fontWeight: 'bold' },
   content: { fontSize: 15, color: '#444', marginBottom: 15, lineHeight: 22 },
   cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 12 },
-  footerText: { fontSize: 13, color: '#666', marginRight: 20 },
+  footerAction: { marginRight: 20 },
+  footerText: { fontSize: 13, color: '#666' },
 
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FFF', width: '90%', padding: 20, borderRadius: 12 },
