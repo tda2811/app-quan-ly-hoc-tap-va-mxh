@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  if (!user) return null;
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

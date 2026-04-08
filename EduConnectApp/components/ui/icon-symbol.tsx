@@ -30,7 +30,10 @@ const MAPPING = {
   'calendar.fill': 'calendar-today',
   'doc.text.fill': 'description',
   'bell.fill': 'notifications',
+  'bell.slash.fill': 'notifications-off',
   'plus': 'add',
+  'calendar': 'event',
+  'chevron.left': 'chevron-left',
 } as IconMapping;
 
 /**

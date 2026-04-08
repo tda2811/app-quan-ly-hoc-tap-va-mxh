@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 
 export default function AdminProfileScreen() {
   const { user, logout } = useAuth();
+  if (!user) return null;
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
 

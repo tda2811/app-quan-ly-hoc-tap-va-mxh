@@ -476,7 +476,86 @@ router.delete('/exams/:id', async (req, res) => {
     }
 });
 
+/**
+ * Quản lý Lịch học (Schedules / Theory & Practice)
+ */
+router.get('/schedules', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT s.*, sub.name as subject_name, 
+                   GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
+                   GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
+            FROM schedules s
+            JOIN subjects sub ON s.subject_id = sub.id
+            LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
+            LEFT JOIN users u ON st.teacher_id = u.id
+            WHERE s.schedule_type != 'exam'
+            GROUP BY s.id
+            ORDER BY s.schedule_date DESC
+        `);
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách lịch học: ' + error.message });
+    }
+});
 
+router.post('/schedules', async (req, res) => {
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    try {
+        const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
+
+        const [result] = await db.query(`
+            INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [subject_id, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time]);
+        
+        const scheduleId = result.insertId;
+
+        if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
+            const values = teacher_ids.map(tId => [scheduleId, tId]);
+            await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES ?', [values]);
+        }
+
+        res.json({ success: true, message: 'Tạo lịch học mới thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi tạo lịch học: ' + error.message });
+    }
+});
+
+router.put('/schedules/:id', async (req, res) => {
+    const { id } = req.params;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    try {
+        const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
+
+        await db.query(`
+            UPDATE schedules 
+            SET subject_id = ?, teacher_id = ?, room_name = ?, schedule_type = ?, schedule_date = ?, start_time = ?, end_time = ?
+            WHERE id = ? AND schedule_type != 'exam'
+        `, [subject_id, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time, id]);
+
+        await db.query('DELETE FROM schedule_teachers WHERE schedule_id = ?', [id]);
+
+        if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
+            const values = teacher_ids.map(tId => [id, tId]);
+            await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES ?', [values]);
+        }
+
+        res.json({ success: true, message: 'Cập nhật lịch học thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật lịch học: ' + error.message });
+    }
+});
+
+router.delete('/schedules/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("DELETE FROM schedules WHERE id = ? AND schedule_type != 'exam'", [id]);
+        res.json({ success: true, message: 'Xóa lịch học thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi xóa lịch học.' });
+    }
+});
 
 /**
  * Quản lý Thông báo (Notifications)

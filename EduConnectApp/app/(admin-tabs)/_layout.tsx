@@ -5,7 +5,12 @@ import { Platform } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
+import { useAuth } from '../../src/context/AuthContext';
+
 export default function AdminLayout() {
+  const { user } = useAuth();
+  if (!user) return null;
+
   return (
     <Tabs
       screenOptions={{
@@ -44,6 +49,22 @@ export default function AdminLayout() {
           title: 'Lớp Học',
           headerTitle: 'Danh Sách Lớp & Ngành',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet.indent" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="schedules"
+        options={{
+          title: 'Lịch Học',
+          headerTitle: 'Quản Lý Lịch Học',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="exams"
+        options={{
+          title: 'Lịch Thi',
+          headerTitle: 'Quản Lý Lịch Thi',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name={"calendar.fill" as any} color={color} />,
         }}
       />
       <Tabs.Screen

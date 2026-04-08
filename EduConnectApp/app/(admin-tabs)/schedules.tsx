@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
+import { useAuth } from '../../src/context/AuthContext';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-interface ExamItem {
+interface ScheduleItem {
   id: number | string;
   subject_id: number | string;
   subject_name?: string;
   teacher_ids?: string;
   teacher_email?: string;
   room_name: string;
+  schedule_type: string;
   schedule_date: string;
   start_time: string;
   end_time: string;
 }
 
-export default function AdminExamsScreen() {
-  const [exams, setExams] = useState<ExamItem[]>([]);
+export default function AdminSchedulesScreen() {
+  const { user } = useAuth();
+  if (!user) return null;
+  
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -26,16 +32,23 @@ export default function AdminExamsScreen() {
   const [editingId, setEditingId] = useState<number | string | null>(null);
   const [subjectId, setSubjectId] = useState('');
   const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  const [scheduleType, setScheduleType] = useState('theory');
 
   const toggleTeacher = (id: string) => {
     setTeacherIds(prev => 
       prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
     );
   };
+  
   const [roomName, setRoomName] = useState('');
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+
+  // Picker visibility
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   // Dropdown states
   const [subjectsList, setSubjectsList] = useState([]);
@@ -44,7 +57,7 @@ export default function AdminExamsScreen() {
   const [teacherDropdownVisible, setTeacherDropdownVisible] = useState(false);
 
   useEffect(() => {
-    fetchExams();
+    fetchSchedules();
     fetchSubjects();
     fetchTeachers();
   }, []);
@@ -65,12 +78,12 @@ export default function AdminExamsScreen() {
     } catch (err) { console.error('Lỗi fetch teachers:', err); }
   };
 
-  const fetchExams = async () => {
+  const fetchSchedules = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/exams`);
-      if (res.data.success) setExams(res.data.data);
+      const res = await axios.get(`${API_URL}/admin/schedules`);
+      if (res.data.success) setSchedules(res.data.data);
     } catch (err) {
-      console.error('Lỗi tải lịch thi:', err);
+      console.error('Lỗi tải lịch học:', err);
     } finally {
       setLoading(false);
     }
@@ -81,86 +94,102 @@ export default function AdminExamsScreen() {
     setSubjectId('');
     setTeacherIds([]);
     setRoomName('');
-    setScheduleDate('');
-    setStartTime('');
-    setEndTime('');
+    setScheduleType('theory');
+    setScheduleDate(new Date());
+    setStartTime(new Date());
+    setEndTime(new Date());
     setSubjectDropdownVisible(false);
     setTeacherDropdownVisible(false);
     setModalVisible(true);
   };
 
-  const openEditModal = (exam: ExamItem) => {
-    setEditingId(exam.id);
-    setSubjectId(String(exam.subject_id));
-    setTeacherIds(exam.teacher_ids ? exam.teacher_ids.split(',').filter(d => d) : []);
-    setRoomName(exam.room_name);
-    setScheduleDate(exam.schedule_date.split('T')[0]);
-    setStartTime(exam.start_time);
-    setEndTime(exam.end_time);
+  const openEditModal = (item: ScheduleItem) => {
+    setEditingId(item.id);
+    setSubjectId(String(item.subject_id));
+    setTeacherIds(item.teacher_ids ? item.teacher_ids.split(',').filter(d => d) : []);
+    setRoomName(item.room_name);
+    setScheduleType(item.schedule_type);
+    setScheduleDate(new Date(item.schedule_date));
+    
+    // Parse time strings
+    const stParts = item.start_time.split(':');
+    const etParts = item.end_time.split(':');
+    const st = new Date(); st.setHours(parseInt(stParts[0]), parseInt(stParts[1]), 0);
+    const et = new Date(); et.setHours(parseInt(etParts[0]), parseInt(etParts[1]), 0);
+    setStartTime(st);
+    setEndTime(et);
+    
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!subjectId || !roomName || !scheduleDate || !startTime || !endTime) {
+    if (!subjectId || !roomName) {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin bắt buộc.');
       return;
     }
 
     try {
+      const dateStr = scheduleDate.toISOString().split('T')[0];
+      const startTimeStr = startTime.toTimeString().split(' ')[0];
+      const endTimeStr = endTime.toTimeString().split(' ')[0];
+
       const payload = {
         subject_id: subjectId,
         teacher_ids: teacherIds,
         room_name: roomName,
-        schedule_date: scheduleDate,
-        start_time: startTime,
-        end_time: endTime,
+        schedule_type: scheduleType,
+        schedule_date: dateStr,
+        start_time: startTimeStr,
+        end_time: endTimeStr,
       };
 
       if (editingId) {
-        await axios.put(`${API_URL}/admin/exams/${editingId}`, payload);
-        Alert.alert('Thành công', 'Đã cập nhật lịch thi.');
+        await axios.put(`${API_URL}/admin/schedules/${editingId}`, payload);
+        Alert.alert('Thành công', 'Đã cập nhật lịch học.');
       } else {
-        await axios.post(`${API_URL}/admin/exams`, payload);
-        Alert.alert('Thành công', 'Đã tạo lịch thi mới.');
+        await axios.post(`${API_URL}/admin/schedules`, payload);
+        Alert.alert('Thành công', 'Đã tạo lịch học mới.');
       }
       setModalVisible(false);
-      fetchExams();
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể lưu lịch thi.');
+      fetchSchedules();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể lưu lịch học.');
     }
   };
 
   const handleDelete = (id: number | string) => {
-    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa lịch thi này?', [
+    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa lịch học này?', [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Xóa',
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await axios.delete(`${API_URL}/admin/exams/${id}`);
+            const res = await axios.delete(`${API_URL}/admin/schedules/${id}`);
             if (res.data.success) {
-              Alert.alert('Thành công', 'Đã xóa lịch thi.');
-              fetchExams();
+              Alert.alert('Thành công', 'Đã xóa lịch học.');
+              fetchSchedules();
             }
           } catch (error) {
-            Alert.alert('Lỗi', 'Không thể xóa lịch thi.');
+            Alert.alert('Lỗi', 'Không thể xóa lịch học.');
           }
         },
       },
     ]);
   };
 
-  const renderItem = ({ item }: { item: ExamItem }) => (
+  const renderItem = ({ item }: { item: ScheduleItem }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{item.subject_name}</Text>
-        <Text style={styles.typeBadge}>LỊCH THI</Text>
+        <Text style={[styles.typeBadge, item.schedule_type === 'practice' && {backgroundColor: '#E3F2FD', color: '#1976D2'}]}>
+           {item.schedule_type === 'theory' ? 'LÝ THUYẾT' : 'THỰC HÀNH'}
+        </Text>
       </View>
       <Text style={styles.cardDesc}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
       <Text style={styles.cardDesc}>Thời gian: {item.start_time} - {item.end_time}</Text>
-      <Text style={styles.cardDesc}>Phòng thi: {item.room_name}</Text>
-      <Text style={styles.cardDesc}>Giám thị: {item.teacher_email || 'Chờ phân công'}</Text>
+      <Text style={styles.cardDesc}>Phòng: {item.room_name}</Text>
+      <Text style={styles.cardDesc}>Giảng viên: {item.teacher_email || 'Chờ phân công'}</Text>
       <View style={styles.actRow}>
         <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
           <Text style={styles.editBtnText}>Sửa</Text>
@@ -175,22 +204,22 @@ export default function AdminExamsScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ 
-        title: 'Quản Lý Lịch Thi', 
+        title: 'Quản Lý Lịch Học', 
         headerBackTitle: 'Trở lại',
         headerRight: () => (
           <TouchableOpacity onPress={openAddModal} style={{ marginRight: 10 }}>
-            <IconSymbol name="plus" size={28} color="#D32F2F" />
+            <IconSymbol name="plus" size={28} color="#1565C0" />
           </TouchableOpacity>
         )
       }} />
       
       {loading ? (
-        <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-      ) : exams.length === 0 ? (
-        <Text style={styles.emptyText}>Chưa có lịch thi nào.</Text>
+        <ActivityIndicator size="large" color="#1565C0" style={{ marginTop: 20 }} />
+      ) : schedules.length === 0 ? (
+        <Text style={styles.emptyText}>Chưa có lịch học nào.</Text>
       ) : (
         <FlatList
-          data={exams}
+          data={schedules}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16 }}
@@ -201,12 +230,21 @@ export default function AdminExamsScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalBackDrop}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editingId ? 'Chỉnh Sửa Lịch Thi' : 'Tạo Lịch Thi Mới'}</Text>
+            <Text style={[styles.modalTitle, {color: '#1565C0'}]}>{editingId ? 'Chỉnh Sửa Lịch Học' : 'Tạo Lịch Học Mới'}</Text>
             
+            <View style={{flexDirection: 'row', marginBottom: 12}}>
+               <TouchableOpacity style={[styles.typeToggle, scheduleType === 'theory' && styles.typeToggleActive]} onPress={() => setScheduleType('theory')}>
+                  <Text style={[styles.typeToggleText, scheduleType === 'theory' && {color: '#FFF'}]}>Lý Thuyết</Text>
+               </TouchableOpacity>
+               <TouchableOpacity style={[styles.typeToggle, scheduleType === 'practice' && styles.typeToggleActive]} onPress={() => setScheduleType('practice')}>
+                  <Text style={[styles.typeToggleText, scheduleType === 'practice' && {color: '#FFF'}]}>Thực Hành</Text>
+               </TouchableOpacity>
+            </View>
+
             {/* Dropdown Môn Học */}
             <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
               <Text style={{color: subjectId ? '#000' : '#888'}}>
-                {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học gán' : 'Chọn Môn học (*)'}
+                {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
               </Text>
             </TouchableOpacity>
 
@@ -220,26 +258,71 @@ export default function AdminExamsScreen() {
               </View>
             )}
 
-            <TextInput style={styles.input} placeholder="Phòng thi (*)" value={roomName} onChangeText={setRoomName} />
-            <TextInput style={styles.input} placeholder="Ngày thi (YYYY-MM-DD)" value={scheduleDate} onChangeText={setScheduleDate} />
-            <TextInput style={styles.input} placeholder="Giờ bắt đầu (HH:MM:SS)" value={startTime} onChangeText={setStartTime} />
-            <TextInput style={styles.input} placeholder="Giờ kết thúc (HH:MM:SS)" value={endTime} onChangeText={setEndTime} />
+            <TextInput style={styles.input} placeholder="Phòng học (*)" value={roomName} onChangeText={setRoomName} />
+            
+            {/* Date Pickers */}
+            <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
+              <Text style={{color: '#000'}}>📅 Ngày BD: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={scheduleDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setScheduleDate(selectedDate);
+                }}
+              />
+            )}
 
-            {/* Dropdown Giám Thị */}
+            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
+                <Text style={{fontSize: 13, color: '#000'}}>⏰ Bắt đầu: {startTime.toTimeString().substring(0, 5)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
+                <Text style={{fontSize: 13, color: '#000'}}>⏰ Kết thúc: {endTime.toTimeString().substring(0, 5)}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {showStartTimePicker && (
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowStartTimePicker(false);
+                  if (selectedDate) setStartTime(selectedDate);
+                }}
+              />
+            )}
+            {showEndTimePicker && (
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowEndTimePicker(false);
+                  if (selectedDate) setEndTime(selectedDate);
+                }}
+              />
+            )}
+
+            {/* Dropdown Giảng Viên */}
             <TouchableOpacity style={styles.inputPicker} onPress={() => setTeacherDropdownVisible(!teacherDropdownVisible)}>
               <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
                 {teacherIds.length > 0 
                   ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
-                  : 'Chọn Giám thị (Tùy chọn)'}
+                  : 'Chọn Giảng viên (Tùy chọn)'}
               </Text>
             </TouchableOpacity>
 
             {teacherDropdownVisible && (
               <View style={styles.dropdownOverlay}>
                 <FlatList nestedScrollEnabled style={{maxHeight: 150}} data={teachersList} keyExtractor={(t: any) => t.id.toString()} renderItem={({item}: {item: any}) => (
-                  <TouchableOpacity style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
+                  <TouchableOpacity style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#E3F2FD' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
                     <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
-                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
+                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#1565C0', fontWeight: 'bold'}}>✓</Text>}
                   </TouchableOpacity>
                 )} />
               </View>
@@ -249,7 +332,7 @@ export default function AdminExamsScreen() {
               <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setModalVisible(false)}>
                 <Text style={styles.btnText}>Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSave}>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1565C0'}]} onPress={handleSave}>
                 <Text style={styles.btnText}>Lưu Lại</Text>
               </TouchableOpacity>
             </View>
@@ -269,9 +352,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    marginHorizontal: 16,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', flex: 1, marginRight: 10 },
@@ -281,10 +362,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
   },
-  cardDesc: { color: '#666', fontSize: 14, marginBottom: 4 },
+  cardDesc: { color: '#666', fontSize: 13, marginBottom: 4 },
   actRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
   deleteBtn: {
     backgroundColor: '#FFEBEE',
@@ -304,7 +385,7 @@ const styles = StyleSheet.create({
 
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FFF', width: '90%', padding: 20, borderRadius: 12, elevation: 5 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 15 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
   btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
@@ -312,5 +393,9 @@ const styles = StyleSheet.create({
   // Dropdown Picker Styles
   inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#FAFAFA', justifyContent: 'center' },
   dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
-  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' }
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+
+  typeToggle: { flex: 1, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: '#1565C0', borderRadius: 8, marginHorizontal: 4 },
+  typeToggleActive: { backgroundColor: '#1565C0' },
+  typeToggleText: { fontWeight: 'bold', color: '#1565C0', fontSize: 13 }
 });

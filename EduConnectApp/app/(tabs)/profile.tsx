@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  if (!user) return null;
   const router = useRouter();
 
   const handleLogout = () => {

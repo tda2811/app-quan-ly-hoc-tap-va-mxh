@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, Image, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+
+import * as DocumentPicker from 'expo-document-picker';
 
 interface Schedule {
   id: number;
   subject_id: number;
   subject_name: string;
   room_name: string;
+  schedule_type: 'theory' | 'practice' | 'exam';
   schedule_date: string;
   start_time: string;
   end_time: string;
@@ -25,15 +28,41 @@ interface GradeItem {
   overall_score: number | null;
 }
 
+interface DocumentItem {
+  id: number;
+  title: string;
+  subject_name: string;
+  file_url: string;
+  file_type: string;
+  uploader_email?: string;
+}
+
 export default function LMSScreen() {
   const { user } = useAuth();
+  if (!user) return null;
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
 
   // View mode for Student 
-  const [viewMode, setViewMode] = useState<'schedule' | 'grades'>('schedule');
+  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents'>('study');
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
+
+  // Documents state
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  // Upload States (Teacher only)
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [docTitle, setDocTitle] = useState('');
+  const [pickedFile, setPickedFile] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [subjectsList, setSubjectsList] = useState<any[]>([]);
+  const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
+
+  // Filtered schedules
+  const studySchedules = schedules.filter(s => s.schedule_type === 'theory' || s.schedule_type === 'practice');
+  const examSchedules = schedules.filter(s => s.schedule_type === 'exam');
 
   // Camera Permission - Student 
   const [permission, requestPermission] = useCameraPermissions();
@@ -46,8 +75,10 @@ export default function LMSScreen() {
   const [loadingAttendees, setLoadingAttendees] = useState(false);
 
   useEffect(() => {
-    fetchSchedules();
-  }, []);
+    if (user) {
+      fetchSchedules();
+    }
+  }, [user]);
 
   const fetchSchedules = async () => {
     try {
@@ -75,6 +106,81 @@ export default function LMSScreen() {
       console.error(err);
     } finally {
       setLoadingGrades(false);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      setLoadingDocs(true);
+      let url = '';
+      if (user.role === 'teacher') {
+        url = `${API_URL}/admin/documents`; // Teachers see all for now, or filter by uploader later
+      } else {
+        url = `${API_URL}/student/documents?student_id=${user.id}`;
+      }
+      const res = await axios.get(url);
+      if (res.data.success) {
+        if (user.role === 'teacher') {
+           setDocuments(res.data.data.filter((d: any) => d.uploader_id === user.id));
+        } else {
+           setDocuments(res.data.data);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const fetchSubjects = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/subjects`);
+      if (res.data.success) setSubjectsList(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setPickedFile(result.assets[0]);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleUpload = async () => {
+    if (!docTitle.trim() || !selectedSubId || !pickedFile) {
+        Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề, chọn môn học và chọn file.');
+        return;
+    }
+
+    try {
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('title', docTitle.trim());
+        formData.append('subject_id', selectedSubId.toString());
+        formData.append('uploader_id', user.id);
+        formData.append('file', {
+            uri: pickedFile.uri,
+            name: pickedFile.name,
+            type: pickedFile.mimeType || 'application/octet-stream',
+        } as any);
+
+        const res = await axios.post(`${API_URL}/admin/documents`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data.success) {
+            Alert.alert('Thành công', 'Tải tài liệu lên thành công.');
+            setDocTitle(''); setPickedFile(null); setSelectedSubId(null);
+            setUploadModalVisible(false);
+            fetchDocuments();
+        }
+    } catch (error) {
+         Alert.alert('Lỗi', 'Không thể tải tài liệu lên.');
+    } finally {
+         setUploading(false);
     }
   };
 
@@ -142,12 +248,14 @@ export default function LMSScreen() {
     >
       <View style={styles.cardHeader}>
          <Text style={styles.subjName}>{item.subject_name}</Text>
-         <Text style={styles.roomBadge}>P. {item.room_name}</Text>
+         <Text style={[styles.roomBadge, item.schedule_type === 'exam' && { backgroundColor: '#FFEBEE', color: '#D32F2F' }]}>
+            {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
+         </Text>
       </View>
       <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
       <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
-      {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 Giám thị: {item.teacher_email}</Text>}
-      {user.role === 'teacher' && (
+      {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 {item.schedule_type === 'exam' ? 'Giám thị: ' : 'Giáo viên: '}{item.teacher_email}</Text>}
+      {user.role === 'teacher' && item.schedule_type !== 'exam' && (
          <Text style={{color: '#D32F2F', fontSize: 13, fontWeight: 'bold', marginTop: 10, alignSelf: 'flex-end'}}>
             👉 Bấm để Tạo QR Điểm Danh
          </Text>
@@ -179,37 +287,89 @@ export default function LMSScreen() {
     </View>
   );
 
+  const renderDocItem = ({ item }: { item: DocumentItem }) => (
+    <View style={styles.docCard}>
+       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+          <Text style={styles.docTitle}>📄 {item.title}</Text>
+          <Text style={styles.docTypeBadge}>{item.file_type.toUpperCase()}</Text>
+       </View>
+       <Text style={styles.docDesc}>Môn: {item.subject_name}</Text>
+       <Text style={styles.docDesc}>Người đăng: {item.uploader_email || 'N/A'}</Text>
+       <TouchableOpacity style={styles.viewDocBtn} onPress={() => Alert.alert('Thông báo', 'Tính năng xem file đang được phát triển.')}>
+          <Text style={styles.viewDocText}>Tải xuống / Xem file</Text>
+       </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{user.role === 'teacher' ? '📜 Lịch Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
+      <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
       
-      {user.role === 'student' && (
-         <View style={styles.tabBar}>
-            <TouchableOpacity style={[styles.tabItem, viewMode === 'schedule' && styles.tabItemActive]} onPress={() => setViewMode('schedule')}>
-               <Text style={[styles.tabText, viewMode === 'schedule' && styles.tabTextActive]}>Lịch Học / Thi</Text>
-            </TouchableOpacity>
+      <View style={styles.tabBar}>
+         <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
+            <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+         </TouchableOpacity>
+         <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
+            <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+         </TouchableOpacity>
+         <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
+            <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+         </TouchableOpacity>
+         {user.role === 'student' && (
             <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
                <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
             </TouchableOpacity>
-         </View>
-      )}
+         )}
+      </View>
 
-      {user.role === 'student' && viewMode === 'schedule' && (
+      {user.role === 'student' && viewMode === 'study' && (
          <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
             <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
          </TouchableOpacity>
       )}
 
-      {viewMode === 'schedule' ? (
+      {viewMode === 'documents' && user.role === 'teacher' && (
+         <TouchableOpacity style={styles.addDocBtn} onPress={() => { setUploadModalVisible(true); fetchSubjects(); }}>
+            <Text style={styles.addDocBtnText}>➕ TẢI TÀI LIỆU LÊN</Text>
+         </TouchableOpacity>
+      )}
+
+      {viewMode === 'study' ? (
         loading ? (
           <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-        ) : schedules.length === 0 ? (
-          <Text style={styles.emptyText}>Chưa có lịch phát sinh.</Text>
+        ) : studySchedules.length === 0 ? (
+          <Text style={styles.emptyText}>Chưa có lịch học nào.</Text>
         ) : (
           <FlatList
-            data={schedules}
+            data={studySchedules}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
+            contentContainerStyle={{ padding: 16 }}
+          />
+        )
+      ) : viewMode === 'exam' ? (
+        loading ? (
+          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
+        ) : examSchedules.length === 0 ? (
+          <Text style={styles.emptyText}>Chưa có lịch thi nào.</Text>
+        ) : (
+          <FlatList
+            data={examSchedules}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16 }}
+          />
+        )
+      ) : viewMode === 'documents' ? (
+        loadingDocs ? (
+          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
+        ) : documents.length === 0 ? (
+          <Text style={styles.emptyText}>Chưa có tài liệu học tập.</Text>
+        ) : (
+          <FlatList
+            data={documents}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderDocItem}
             contentContainerStyle={{ padding: 16 }}
           />
         )
@@ -227,6 +387,47 @@ export default function LMSScreen() {
           />
         )
       )}
+
+      {/* 🔴 Teacher Upload Modal */}
+      <Modal visible={uploadModalVisible} animationType="slide" transparent={true}>
+         <View style={styles.modalBackDrop}>
+            <View style={styles.modalContent}>
+               <Text style={styles.modalTitle}>Tải Tài Liệu Lên</Text>
+               <ScrollView style={{width: '100%', maxHeight: 400}}>
+                  <Text style={styles.label}>Tiêu Đề:</Text>
+                  <TextInput style={styles.input} placeholder="Vd: Slide chương 1" value={docTitle} onChangeText={setDocTitle} />
+                  
+                  <Text style={styles.label}>Môn Học:</Text>
+                  <View style={{maxHeight: 120, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 8, marginBottom: 15}}>
+                     <ScrollView nestedScrollEnabled={true}>
+                        {subjectsList.map((sub) => (
+                           <TouchableOpacity key={sub.id} style={[styles.subItem, selectedSubId === sub.id && styles.subItemActive]} onPress={() => setSelectedSubId(sub.id)}>
+                              <Text style={{color: selectedSubId === sub.id ? '#FFF' : '#333', fontSize: 13}}>{sub.name}</Text>
+                           </TouchableOpacity>
+                        ))}
+                     </ScrollView>
+                  </View>
+
+                  <Text style={styles.label}>Chọn File:</Text>
+                  <TouchableOpacity style={styles.pickBtn} onPress={pickDocument}>
+                     <Text style={{color: '#1976D2', fontSize: 13, fontWeight: 'bold'}}>{pickedFile ? `📄 ${pickedFile.name}` : '➕ Chọn file...'}</Text>
+                  </TouchableOpacity>
+               </ScrollView>
+
+               <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, width: '100%'}}>
+                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setUploadModalVisible(false)} disabled={uploading}>
+                     <Text style={styles.btnText}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#2E7D32'}]} onPress={handleUpload} disabled={uploading}>
+                     {uploading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.btnText}>Tải Lên</Text>}
+                  </TouchableOpacity>
+               </View>
+            </View>
+         </View>
+      </Modal>
+
+      {/* 🔴 Student Scanner Modal ... rest of file ... */}
+
 
       {/* 🔴 Student Scanner Modal */}
       <Modal visible={showScanner} animationType="slide">
@@ -319,5 +520,24 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#D32F2F', marginBottom: 4 },
   qrImage: { width: 180, height: 180, marginBottom: 10 },
   attendeeItem: { width: '100%', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  closeBtn: { backgroundColor: '#D32F2F', width: '100%', padding: 12, borderRadius: 8, alignItems: 'center' }
+  closeBtn: { backgroundColor: '#D32F2F', width: '100%', padding: 12, borderRadius: 8, alignItems: 'center' },
+
+  // Docs styles
+  docCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, marginBottom: 12, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#1976D2' },
+  docTitle: { fontSize: 15, fontWeight: 'bold', color: '#1B5E20', flex: 1 },
+  docTypeBadge: { backgroundColor: '#E3F2FD', color: '#1976D2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 10, fontWeight: 'bold' },
+  docDesc: { fontSize: 12, color: '#666', marginTop: 4 },
+  viewDocBtn: { backgroundColor: '#F0F7FF', padding: 10, borderRadius: 8, marginTop: 10, alignItems: 'center', borderWidth: 1, borderColor: '#1976D2' },
+  viewDocText: { color: '#1976D2', fontSize: 13, fontWeight: 'bold' },
+
+  // Teacher Upload styles
+  addDocBtn: { backgroundColor: '#1B5E20', padding: 12, borderRadius: 10, marginHorizontal: 16, marginVertical: 10, alignItems: 'center' },
+  addDocBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+  label: { fontSize: 13, color: '#555', marginBottom: 4, fontWeight: 'bold' },
+  input: { width: '100%', height: 44, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, marginBottom: 15 },
+  subItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  subItemActive: { backgroundColor: '#2E7D32' },
+  pickBtn: { borderWidth: 1, borderColor: '#1976D2', borderStyle: 'dashed', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
+  modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 8 },
+  btnText: { color: '#FFF', fontWeight: 'bold' }
 });

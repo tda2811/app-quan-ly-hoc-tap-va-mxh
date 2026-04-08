@@ -90,7 +90,12 @@ export default function AdminDashboard() {
           <Text style={styles.gridActionText}>Quản Lý File</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/admin/exams')}>
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/(admin-tabs)/schedules')}>
+          <IconSymbol name={"calendar" as any} size={32} color="#1565C0" style={{ marginBottom: 8 }} />
+          <Text style={styles.gridActionText}>Lịch Học</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/(admin-tabs)/exams')}>
           <IconSymbol name={"calendar.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Lịch Thi</Text>
         </TouchableOpacity>

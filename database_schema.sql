@@ -90,6 +90,16 @@ CREATE TABLE schedules (
     FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- Hỗ trợ nhiều Giám thị/Giảng viên cho 1 lịch (Phát sinh từ yêu cầu thực tế)
+CREATE TABLE schedule_teachers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    schedule_id INT NOT NULL,
+    teacher_id VARCHAR(36) NOT NULL,
+    FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY(schedule_id, teacher_id)
+);
+
 -- Điểm danh (Chống gian lận bằng IP nội bộ)
 CREATE TABLE attendances (
     id INT AUTO_INCREMENT PRIMARY KEY,

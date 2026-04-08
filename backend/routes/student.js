@@ -1,6 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+
+const upload = multer({ storage });
 
 /**
  * Danh sách Bài viết cho Feed (Tất cả hoặc theo nhóm)
@@ -9,11 +24,12 @@ router.get('/posts', async (req, res) => {
     const { group_id } = req.query;
     try {
         let query = `
-            SELECT p.*, u.email, s.full_name, g.name as group_name 
+            SELECT p.*, u.email, s.full_name, g.name as group_name, pm.media_url, pm.media_type
             FROM posts p 
             JOIN users u ON p.user_id = u.id
             LEFT JOIN students s ON u.id = s.user_id
             LEFT JOIN groups_table g ON p.group_id = g.id
+            LEFT JOIN post_media pm ON p.id = pm.post_id
         `;
         let params = [];
         if (group_id) {
@@ -30,17 +46,28 @@ router.get('/posts', async (req, res) => {
 });
 
 /**
- * Đăng bài viết mới
+ * Đăng bài viết mới - Hỗ trợ tài chọn liệu/ảnh
  */
-router.post('/posts', async (req, res) => {
+router.post('/posts', upload.single('file'), async (req, res) => {
     const { user_id, group_id, content } = req.body;
     if (!user_id || !content) return res.status(400).json({ success: false, message: 'Thiếu thông tin Đăng bài' });
     
     try {
-        await db.query(
+        const [result] = await db.query(
             'INSERT INTO posts (user_id, group_id, content) VALUES (?, ?, ?)',
             [user_id, group_id || null, content]
         );
+        const postId = result.insertId;
+
+        if (req.file) {
+            const fileUrl = `/uploads/${req.file.filename}`;
+            const fileType = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
+            await db.query(
+                'INSERT INTO post_media (post_id, media_url, media_type) VALUES (?, ?, ?)',
+                [postId, fileUrl, fileType]
+            );
+        }
+
         res.json({ success: true, message: 'Đăng bài viết thành công.' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi Đăng bài: ' + error.message });
@@ -123,6 +150,65 @@ router.get('/schedules', async (req, res) => {
         res.json({ success: true, data: schedules });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy lịch học: ' + error.message });
+    }
+});
+
+/**
+ * Danh sách Tài liệu học tập của Sinh viên (Theo môn đăng ký)
+ */
+router.get('/documents', async (req, res) => {
+    const { student_id } = req.query;
+    if (!student_id) return res.status(400).json({ success: false, message: 'Thiếu student_id' });
+
+    try {
+        const [docs] = await db.query(`
+            SELECT d.*, sub.name as subject_name, u.email as uploader_email
+            FROM student_enrollments se
+            JOIN documents d ON se.subject_id = d.subject_id
+            JOIN subjects sub ON d.subject_id = sub.id
+            LEFT JOIN users u ON d.uploader_id = u.id
+            WHERE se.student_id = ?
+            ORDER BY d.created_at DESC
+        `, [student_id]);
+        
+        res.json({ success: true, data: docs });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy tài liệu: ' + error.message });
+    }
+});
+
+/**
+ * Lấy danh sách Bình luận của bài viết
+ */
+router.get('/posts/:postId/comments', async (req, res) => {
+    const { postId } = req.params;
+    try {
+        const [comments] = await db.query(`
+            SELECT c.*, u.email, s.full_name 
+            FROM comments c 
+            JOIN users u ON c.user_id = u.id 
+            LEFT JOIN students s ON u.id = s.user_id 
+            WHERE c.post_id = ? 
+            ORDER BY c.created_at ASC
+        `, [postId]);
+        res.json({ success: true, data: comments });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+/**
+ * Đăng bình luận mới
+ */
+router.post('/posts/comment', async (req, res) => {
+    const { user_id, post_id, content } = req.body;
+    if (!content) return res.status(400).json({ success: false, message: 'Nội dung bình luận không được trống.' });
+    try {
+        await db.query('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)', [post_id, user_id, content]);
+        await db.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?', [post_id]);
+        res.json({ success: true, message: 'Đã gửi bình luận.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 

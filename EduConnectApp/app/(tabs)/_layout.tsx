@@ -7,24 +7,26 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { useAuth } from '../../src/context/AuthContext';
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
+
+  if (!user) return null;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#B71C1C', // Màu Đỏ đặc trưng khi chọn Tab
-        headerShown: true,                // Hiện thanh tiêu đề màn hình Header
+        tabBarActiveTintColor: '#B71C1C', 
+        headerShown: true,
         tabBarButton: HapticTab,
         tabBarStyle: Platform.select({
-          ios: {
-            // Hiệu ứng mờ nền cho iOS
-            position: 'absolute',
-          },
+          ios: { position: 'absolute' },
           default: {
-            height: 60,                // Nâng chiều cao tab để nhường chỗ cho text
-            paddingBottom: 10,         // Chừa khoảng trống dưới cùng
-            paddingTop: 8,             // Khoảng trống trên
+            height: 60,
+            paddingBottom: 10,
+            paddingTop: 8,
             backgroundColor: '#FFF',
           },
         }),
@@ -40,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="lms"
         options={{
-          title: 'Học Tập',
+          title: user?.role === 'teacher' ? '📜 Dạy Học' : '🎓 Học Tập',
           headerTitle: 'Lịch Học & Điểm Số',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
         }}

@@ -154,14 +154,14 @@ export default function AdminChatScreen() {
       )}
 
       {/* Chat Conversation Modal Layout */}
-      <Modal visible={!!selectedChat} animationType="slide">
+      <Modal visible={!!selectedChat} animationType="slide" onRequestClose={() => setSelectedChat(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: '#FFF' }}>
           <View style={styles.convHeader}>
-            <TouchableOpacity onPress={() => setSelectedChat(null)}>
-              <IconSymbol name={"chevron.left" as any} size={24} color="#333" />
+            <TouchableOpacity onPress={() => setSelectedChat(null)} style={{ padding: 10, marginLeft: -10 }}>
+              <IconSymbol name={"chevron.left" as any} size={28} color="#333" />
             </TouchableOpacity>
             <Text style={styles.convTitle}>{selectedChat?.display_name || 'Hội thoại'}</Text>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 32 }} />
           </View>
 
           <FlatList
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   chatType: { fontSize: 12, color: '#666', marginTop: 2 },
   
   // Conversation View Styles
-  convHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: '#EEE', alignItems: 'center', backgroundColor: '#FFF' },
+  convHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, paddingTop: Platform.OS === 'ios' ? 45 : 40, borderBottomWidth: 1, borderColor: '#EEE', alignItems: 'center', backgroundColor: '#FFF' },
   convTitle: { fontSize: 18, fontWeight: 'bold' },
   msgContainer: { maxWidth: '75%', padding: 10, borderRadius: 12, marginBottom: 10 },
   msgTheirs: { alignSelf: 'flex-start', backgroundColor: '#E0E0E0' },

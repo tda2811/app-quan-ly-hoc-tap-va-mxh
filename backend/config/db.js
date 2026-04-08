@@ -14,4 +14,25 @@ const pool = mysql.createPool({
 });
 
 // Trả về dạng promise để dùng async / await phía Controller cho dễ
-module.exports = pool.promise();
+const promisePool = pool.promise();
+
+// Chạy khởi tạo bảng cần thiết (VD bảng schedule_teachers bị thiếu trong schema)
+async function initTables() {
+    try {
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS schedule_teachers (
+                schedule_id INT NOT NULL,
+                teacher_id VARCHAR(36) NOT NULL,
+                PRIMARY KEY (schedule_id, teacher_id),
+                FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE,
+                FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+        console.log('✅ Database init: Table schedule_teachers check OK.');
+    } catch (err) {
+        console.error('❌ Database init Error:', err.message);
+    }
+}
+initTables();
+
+module.exports = promisePool;
