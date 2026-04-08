@@ -1,17 +1,14 @@
 import React from 'react';
-import { Redirect } from 'expo-router';
-import { useAuth } from '../src/context/AuthContext';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function EntryScreen() {
-  const { user } = useAuth();
-
-  if (user) {
-    if (user.role === 'admin') {
-      return <Redirect href="/(admin-tabs)" />;
-    } else {
-      return <Redirect href="/(tabs)" />;
-    }
-  }
-
-  return <Redirect href="/login" />;
+  return (
+    <View style={styles.container}>
+       <ActivityIndicator size="large" color="#B71C1C" />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }
+});

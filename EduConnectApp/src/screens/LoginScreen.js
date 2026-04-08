@@ -39,13 +39,6 @@ const LoginScreen = () => {
       login(data.user, data.token);
 
       Alert.alert("Thành công", `Chào mừng trở lại, ${data.user?.full_name || email}`);
-
-      if (data.user && data.user.role === 'admin') {
-        router.replace('/(admin-tabs)');
-      } else {
-        router.replace('/(tabs)');
-      }
-
     } catch (error) {
       setIsLoading(false);
       setErrorMsg(error.message);

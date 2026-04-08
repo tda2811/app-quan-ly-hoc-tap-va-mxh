@@ -31,10 +31,19 @@ const StackScreenStructure = () => {
   useEffect(() => {
     if (!navigationState?.key) return;
 
-    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === '(admin-tabs)';
+    const firstSegment = segments[0] as string;
+    const inAuthGroup = firstSegment === '(tabs)' || firstSegment === '(admin-tabs)';
+    const isLoginPage = firstSegment === 'login';
+    const isRoot = !firstSegment || firstSegment === 'index';
 
     if (!user && inAuthGroup) {
       router.replace('/login');
+    } else if (user && (isLoginPage || isRoot)) {
+        if (user.role === 'admin') {
+            router.replace('/(admin-tabs)');
+        } else {
+            router.replace('/(tabs)');
+        }
     }
   }, [user, segments, navigationState?.key]);
 
