@@ -32,6 +32,29 @@ router.get('/schedules', async (req, res) => {
 });
 
 /**
+ * Giáo viên tự thêm lịch dạy
+ */
+router.post('/schedules', async (req, res) => {
+    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    if (!teacher_id || !subject_id || !schedule_date) {
+        return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc.' });
+    }
+    try {
+        const [result] = await db.query(`
+            INSERT INTO schedules (teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type || 'theory']);
+        
+        // Đồng bộ vào bảng schedule_teachers
+        await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES (?, ?)', [result.insertId, teacher_id]);
+
+        res.json({ success: true, data: { id: result.insertId }, message: 'Thêm lịch dạy thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
  * Lấy danh sách Sinh viên đã điểm danh trong một lịch học
  */
 router.get('/list/:scheduleId', async (req, res) => {
@@ -87,6 +110,42 @@ router.post('/check-in', async (req, res) => {
         );
 
         res.json({ success: true, message: 'Điểm danh thành công!' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Bạn đã điểm danh lịch học này rồi.' });
+        }
+        console.error('Lỗi điểm danh:', error);
+        res.status(500).json({ success: false, message: 'Lỗi hệ thống khi điểm danh.' });
+    }
+});
+
+/**
+ * Cập nhật lịch dạy (Giáo viên tự sửa)
+ */
+router.put('/schedules/:id', async (req, res) => {
+    const { id } = req.params;
+    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    try {
+        await db.query(`
+            UPDATE schedules 
+            SET subject_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?, schedule_type = ? 
+            WHERE id = ? AND teacher_id = ?
+        `, [subject_id, room_name, schedule_date, start_time, end_time, schedule_type, id, teacher_id]);
+        res.json({ success: true, message: 'Cập nhật lịch dạy thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * Xóa lịch dạy
+ */
+router.delete('/schedules/:id', async (req, res) => {
+    const { id } = req.params;
+    const { teacher_id } = req.query;
+    try {
+        await db.query('DELETE FROM schedules WHERE id = ? AND teacher_id = ?', [id, teacher_id]);
+        res.json({ success: true, message: 'Đã xóa lịch dạy.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

@@ -12,7 +12,15 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+    filename: (req, file, cb) => {
+        const cleanName = file.originalname
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[đĐ]/g, "d")
+            .replace(/\s+/g, "-")
+            .replace(/[^a-zA-Z0-9.-]/g, "");
+        cb(null, Date.now() + '-' + cleanName);
+    }
 });
 
 const upload = multer({ storage });
@@ -44,7 +52,7 @@ router.get('/stats', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT u.id, u.email, u.role, u.status, s.full_name, s.student_code 
+            SELECT u.id, u.email, u.role, u.status, s.full_name, s.student_code, s.class_id, s.major_id 
             FROM users u 
             LEFT JOIN students s ON u.id = s.user_id
         `);

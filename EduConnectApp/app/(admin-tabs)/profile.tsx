@@ -12,7 +12,6 @@ export default function AdminProfileScreen() {
   const confirmLogout = () => {
     setModalVisible(false);
     logout();
-    router.replace('/');
   };
 
   return (

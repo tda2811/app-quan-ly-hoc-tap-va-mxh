@@ -21,6 +21,7 @@ export default function ChatScreen() {
   // New Chat Modal
   const [newChatModalVisible, setNewChatModalVisible] = useState(false);
   const [userList, setUserList] = useState<any[]>([]);
+  const [contactSearch, setContactSearch] = useState('');
 
   useEffect(() => {
     // 1. Initialise Socket
@@ -120,6 +121,11 @@ export default function ChatScreen() {
     }
   };
 
+  const filteredUserList = userList.filter((u: any) =>
+    u.full_name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    u.email?.toLowerCase().includes(contactSearch.toLowerCase())
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -193,17 +199,27 @@ export default function ChatScreen() {
         <View style={styles.modalBackDrop}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Chọn người muốn nhắn</Text>
-            <FlatList
-              data={userList}
-              keyExtractor={(u) => u.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.contactItem} onPress={() => startPrivateChat(item.id)}>
-                  <Text style={{ fontWeight: '600' }}>{item.full_name || item.email}</Text>
-                  <Text style={{ fontSize: 12, color: '#666' }}>{item.role === 'teacher' ? 'Giảng Viên' : 'Sinh Viên'}</Text>
-                </TouchableOpacity>
-              )}
-              style={{ maxHeight: 300 }}
+            <TextInput
+              style={styles.contactSearchInput}
+              placeholder="🔍 Tìm theo tên hoặc email..."
+              value={contactSearch}
+              onChangeText={setContactSearch}
             />
+            {filteredUserList.length === 0 ? (
+              <Text style={{ textAlign: 'center', marginVertical: 20, color: '#999' }}>Không tìm thấy người dùng này.</Text>
+            ) : (
+              <FlatList
+                data={filteredUserList}
+                keyExtractor={(u) => u.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.contactItem} onPress={() => startPrivateChat(item.id)}>
+                    <Text style={{ fontWeight: '600' }}>{item.full_name || item.email}</Text>
+                    <Text style={{ fontSize: 12, color: '#666' }}>{item.role === 'teacher' ? 'Giảng Viên' : 'Sinh Viên'} • {item.email}</Text>
+                  </TouchableOpacity>
+                )}
+                style={{ maxHeight: 300 }}
+              />
+            )}
             <TouchableOpacity style={styles.closeBtn} onPress={() => setNewChatModalVisible(false)}>
               <Text style={{ color: '#D32F2F' }}>Đóng</Text>
             </TouchableOpacity>
@@ -226,7 +242,7 @@ const styles = StyleSheet.create({
   avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#CCC', justifyContent: 'center', alignItems: 'center' },
   chatName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   chatType: { fontSize: 12, color: '#666', marginTop: 2 },
-  
+
   // Conversation View Styles
   convHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, paddingTop: Platform.OS === 'ios' ? 45 : 40, borderBottomWidth: 1, borderColor: '#EEE', alignItems: 'center', backgroundColor: '#FFF' },
   convTitle: { fontSize: 18, fontWeight: 'bold' },
@@ -237,11 +253,12 @@ const styles = StyleSheet.create({
   inputBar: { flexDirection: 'row', padding: 10, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#EEE' },
   inputField: { flex: 1, backgroundColor: '#F0F2F5', height: 44, borderRadius: 20, paddingHorizontal: 15, fontSize: 15 },
   sendBtn: { width: 44, height: 44, backgroundColor: '#B71C1C', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  
+
   // Modal Settings
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, elevation: 5 },
   modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
   contactItem: { paddingVertical: 12, borderBottomWidth: 1, borderColor: '#EEE' },
+  contactSearchInput: { backgroundColor: '#F0F2F5', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 8, marginBottom: 15, fontSize: 14 },
   closeBtn: { marginTop: 15, alignSelf: 'center' }
 });

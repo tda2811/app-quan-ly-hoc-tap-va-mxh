@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require('uuid');
  * Xử lý Đăng ký tài khoản mới 
  */
 router.post('/register', async (req, res) => {
-    const { email, password, role, fullName, studentCode } = req.body;
+    const { email, password, role, fullName, studentCode, classId, majorId } = req.body;
 
     if (!email || !password || !role) {
         return res.status(400).json({ message: 'Vui lòng điền đủ email, mật khẩu và vai trò!' });
@@ -42,8 +42,8 @@ router.post('/register', async (req, res) => {
 
             if (role === 'student') {
                 await connection.query(
-                    'INSERT INTO students (user_id, student_code, full_name) VALUES (?, ?, ?)',
-                    [userId, studentCode || `SV${Date.now()}`, fullName || 'New Student']
+                    'INSERT INTO students (user_id, student_code, full_name, class_id, major_id) VALUES (?, ?, ?, ?, ?)',
+                    [userId, studentCode || `SV${Date.now()}`, fullName || 'New Student', classId || null, majorId || null]
                 );
             }
 

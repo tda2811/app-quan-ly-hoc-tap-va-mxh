@@ -22,6 +22,7 @@ export default function AdminClassesScreen() {
 
   const [majorsList, setMajorsList] = useState([]);
   const [majorDropdownVisible, setMajorDropdownVisible] = useState(false);
+  const [majorFilter, setMajorFilter] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -98,6 +99,7 @@ export default function AdminClassesScreen() {
     setIsEditing(false);
     setSelectedId(null);
     setName(''); setCohort(''); setMajorId(''); setMajorCode('');
+    setMajorFilter('');
   };
 
   const handleDelete = (id: number, title: string) => {
@@ -176,8 +178,14 @@ export default function AdminClassesScreen() {
 
                 {majorDropdownVisible && (
                   <View style={styles.dropdownOverlay}>
+                    <TextInput 
+                      style={styles.dropdownSearch} 
+                      placeholder="Tìm khoa/ngành..." 
+                      value={majorFilter}
+                      onChangeText={setMajorFilter}
+                    />
                     <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
-                      {majorsList.map((m: any) => (
+                      {majorsList.filter((m: any) => m.name.toLowerCase().includes(majorFilter.toLowerCase())).map((m: any) => (
                         <TouchableOpacity key={m.id} style={styles.dropdownItem} onPress={() => { setMajorId(m.id.toString()); setMajorDropdownVisible(false); }}>
                           <Text style={{fontSize: 14}}>{m.name} ({m.code})</Text>
                         </TouchableOpacity>
@@ -246,5 +254,6 @@ const styles = StyleSheet.create({
   // Picker Styles
   inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
   dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
-  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' }
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  dropdownSearch: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
 });

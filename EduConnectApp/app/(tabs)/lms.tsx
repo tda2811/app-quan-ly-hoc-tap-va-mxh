@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput } from 'react-native';
+import { 
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, 
+  ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput,
+  Keyboard, TouchableWithoutFeedback
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 import axios from 'axios';
+import * as DocumentPicker from 'expo-document-picker';
+import * as WebBrowser from 'expo-web-browser';
 import { API_URL } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-
-import * as DocumentPicker from 'expo-document-picker';
 
 interface Schedule {
   id: number;
@@ -16,7 +22,7 @@ interface Schedule {
   schedule_date: string;
   start_time: string;
   end_time: string;
-  teacher_email?: string; // added support
+  teacher_email?: string;
 }
 
 interface GradeItem {
@@ -40,56 +46,68 @@ interface DocumentItem {
 export default function LMSScreen() {
   const { user } = useAuth();
   if (!user) return null;
+
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // View mode for Student 
-  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents'>('study');
+  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents' | 'attendance'>('study');
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
-
-  // Documents state
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [attendances, setAttendances] = useState<any[]>([]);
+  const [loadingAttendances, setLoadingAttendances] = useState(false);
 
-  // Upload States (Teacher only)
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [docTitle, setDocTitle] = useState('');
   const [pickedFile, setPickedFile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [subjectsList, setSubjectsList] = useState<any[]>([]);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
-
-  // Filtered schedules
-  const studySchedules = schedules.filter(s => s.schedule_type === 'theory' || s.schedule_type === 'practice');
-  const examSchedules = schedules.filter(s => s.schedule_type === 'exam');
-
-  // Camera Permission - Student 
   const [permission, requestPermission] = useCameraPermissions();
   const [showScanner, setShowScanner] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [subFilter, setSubFilter] = useState('');
 
-  // Teacher View States
+  // Teacher Create Schedule states
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [roomName, setRoomName] = useState('');
+  const [schDate, setSchDate] = useState(new Date());
+  const [sTime, setSTime] = useState(new Date());
+  const [eTime, setETime] = useState(new Date());
+  const [schType, setSchType] = useState<'theory' | 'practice'>('theory');
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedEditId, setSelectedEditId] = useState<number | null>(null);
+  const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showSTimePicker, setShowSTimePicker] = useState(false);
+  const [showETimePicker, setShowETimePicker] = useState(false);
+
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchSchedules();
-    }
+    fetchSchedules();
+    if (user.role === 'teacher') fetchSubjects();
   }, [user]);
+
+  const fetchSubjects = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/subjects`);
+      if (res.data.success) setSubjectsList(res.data.data);
+    } catch (e) { console.log(e); }
+  };
 
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      if (user.role === 'teacher') {
-        const res = await axios.get(`${API_URL}/attendance/schedules?teacher_id=${user.id}`);
-        if (res.data.success) setSchedules(res.data.data);
-      } else {
-        const res = await axios.get(`${API_URL}/student/schedules?student_id=${user.id}`);
-        if (res.data.success) setSchedules(res.data.data);
-      }
+      const url = user.role === 'teacher' 
+        ? `${API_URL}/attendance/schedules?teacher_id=${user.id}`
+        : `${API_URL}/student/schedules?student_id=${user.id}`;
+      const res = await axios.get(url);
+      if (res.data.success) setSchedules(res.data.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -112,18 +130,15 @@ export default function LMSScreen() {
   const fetchDocuments = async () => {
     try {
       setLoadingDocs(true);
-      let url = '';
-      if (user.role === 'teacher') {
-        url = `${API_URL}/admin/documents`; // Teachers see all for now, or filter by uploader later
-      } else {
-        url = `${API_URL}/student/documents?student_id=${user.id}`;
-      }
+      const url = user.role === 'teacher' 
+        ? `${API_URL}/admin/documents` 
+        : `${API_URL}/student/documents?student_id=${user.id}`;
       const res = await axios.get(url);
       if (res.data.success) {
         if (user.role === 'teacher') {
-           setDocuments(res.data.data.filter((d: any) => d.uploader_id === user.id));
+          setDocuments(res.data.data.filter((d: any) => d.uploader_id === user.id));
         } else {
-           setDocuments(res.data.data);
+          setDocuments(res.data.data);
         }
       }
     } catch (err) {
@@ -133,11 +148,16 @@ export default function LMSScreen() {
     }
   };
 
-  const fetchSubjects = async () => {
+  const fetchAttendances = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/subjects`);
-      if (res.data.success) setSubjectsList(res.data.data);
-    } catch (err) { console.error(err); }
+      setLoadingAttendances(true);
+      const res = await axios.get(`${API_URL}/student/attendances?student_id=${user.id}`);
+      if (res.data.success) setAttendances(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAttendances(false);
+    }
   };
 
   const pickDocument = async () => {
@@ -150,11 +170,11 @@ export default function LMSScreen() {
   };
 
   const handleUpload = async () => {
+    Keyboard.dismiss();
     if (!docTitle.trim() || !selectedSubId || !pickedFile) {
         Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề, chọn môn học và chọn file.');
         return;
     }
-
     try {
         setUploading(true);
         const formData = new FormData();
@@ -179,112 +199,139 @@ export default function LMSScreen() {
         }
     } catch (error) {
          Alert.alert('Lỗi', 'Không thể tải tài liệu lên.');
-    } finally {
-         setUploading(false);
-    }
+     } finally {
+          setUploading(false);
+     }
   };
 
-  const fetchAttendees = async (scheduleId: number) => {
+  const handleAddSchedule = async () => {
+    Keyboard.dismiss();
+    if (!selectedSubId || !roomName || !schDate) {
+      Alert.alert('Lỗi', 'Vui lòng điền đủ thông tin (Môn học, Phòng, Ngày).');
+      return;
+    }
     try {
-      setLoadingAttendees(true);
-      const res = await axios.get(`${API_URL}/attendance/list/${scheduleId}`);
-      if (res.data.success) setAttendees(res.data.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingAttendees(false);
-    }
+      const payload = {
+        teacher_id: user.id,
+        subject_id: selectedSubId,
+        room_name: roomName,
+        schedule_date: schDate.toISOString().split('T')[0],
+        start_time: sTime.toTimeString().split(' ')[0].substring(0, 5),
+        end_time: eTime.toTimeString().split(' ')[0].substring(0, 5),
+        schedule_type: schType
+      };
+
+      if (isEditing && selectedEditId) {
+        await axios.put(`${API_URL}/attendance/schedules/${selectedEditId}`, payload);
+        Alert.alert('Thành công', 'Đã cập nhật lịch dạy.');
+      } else {
+        await axios.post(`${API_URL}/attendance/schedules`, payload);
+        Alert.alert('Thành công', 'Đã thêm lịch dạy mới.');
+      }
+      setAddModalVisible(false);
+      resetAddModal();
+      fetchSchedules();
+    } catch (e) { Alert.alert('Lỗi', 'Không thể lưu lịch dạy.'); }
   };
 
-  const openTeacherModal = (schedule: Schedule) => {
-    setSelectedSchedule(schedule);
-    setAttendees([]);
-    fetchAttendees(schedule.id);
+  const handleDeleteSchedule = (id: number) => {
+    Alert.alert('Xác Nhận', 'Bạn có muốn xóa lịch dạy này?', [
+      { text: 'Hủy' },
+      { text: 'Xóa', style: 'destructive', onPress: async () => {
+          try {
+            await axios.delete(`${API_URL}/attendance/schedules/${id}?teacher_id=${user.id}`);
+            fetchSchedules();
+          } catch (e) { Alert.alert('Lỗi', 'Xóa thất bại.'); }
+      }}
+    ]);
+  };
+
+  const openEditModal = (item: Schedule) => {
+    setIsEditing(true);
+    setSelectedEditId(item.id);
+    setSelectedSubId(item.subject_id);
+    setRoomName(item.room_name);
+    setSchDate(new Date(item.schedule_date));
+    
+    const [stH, stM] = item.start_time.split(':');
+    const startD = new Date(); startD.setHours(parseInt(stH), parseInt(stM));
+    setSTime(startD);
+
+    const [etH, etM] = item.end_time.split(':');
+    const endD = new Date(); endD.setHours(parseInt(etH), parseInt(etM));
+    setETime(endD);
+
+    setSchType(item.schedule_type as any);
+    setAddModalVisible(true);
+  };
+
+  const resetAddModal = () => {
+    setIsEditing(false);
+    setSelectedEditId(null);
+    setSelectedSubId(null);
+    setRoomName('');
+    setSchDate(new Date());
+    setSTime(new Date());
+    setETime(new Date());
+    setSchType('theory');
+    setSubFilter('');
+    setSubjectDropdownVisible(false);
+  };
+
+  const handleViewFile = async (fileUrl: string) => {
+    try {
+      if (!fileUrl) {
+          Alert.alert('Lỗi', 'Đường dẫn file không tồn tại.');
+          return;
+      }
+      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${API_URL.replace('/api', '')}${fileUrl}`;
+      await WebBrowser.openBrowserAsync(fullUrl);
+    } catch (error) {
+       Alert.alert('Lỗi', 'Không thể mở file.');
+    }
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
     setShowScanner(false);
-
     try {
       const scheduleId = parseInt(data);
-      if (isNaN(scheduleId)) {
-         Alert.alert('Lỗi', 'Dữ liệu QR Code không hợp lệ.');
-         setScanned(false);
-         return;
-      }
-
       const res = await axios.post(`${API_URL}/attendance/check-in`, {
         schedule_id: scheduleId,
         student_id: user.id
       });
-
-      if (res.data.success) {
-        Alert.alert('Thành công', 'Điểm danh thành công!');
-      }
+      if (res.data.success) Alert.alert('Thành công', 'Điểm danh thành công!');
     } catch (error: any) {
-        Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra khi điểm danh.');
+        Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra.');
     } finally {
         setScanned(false);
     }
   };
 
-  const openScanner = async () => {
-    if (!permission || !permission.granted) {
-      const res = await requestPermission();
-      if (!res.granted) {
-        Alert.alert('Quyền Truy Cập', 'Bạn cần cho phép truy cập Camera để quét điểm danh.');
-        return;
-      }
-    }
-    setShowScanner(true);
-  };
-
   const renderItem = ({ item }: { item: Schedule }) => (
     <TouchableOpacity 
-       style={styles.card} 
-       onPress={() => user.role === 'teacher' && openTeacherModal(item)}
+      style={styles.card} 
+      onPress={() => user.role === 'teacher' && setSelectedSchedule(item)}
+      onLongPress={() => user.role === 'teacher' && openEditModal(item)}
     >
       <View style={styles.cardHeader}>
          <Text style={styles.subjName}>{item.subject_name}</Text>
+         <TouchableOpacity 
+           onPress={() => user.role === 'teacher' && handleDeleteSchedule(item.id)}
+           style={{padding: 4}}
+         >
+           {user.role === 'teacher' && <Text style={{color: '#999', fontSize: 10}}>Xóa</Text>}
+         </TouchableOpacity>
          <Text style={[styles.roomBadge, item.schedule_type === 'exam' && { backgroundColor: '#FFEBEE', color: '#D32F2F' }]}>
             {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
          </Text>
       </View>
       <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
       <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
-      {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 {item.schedule_type === 'exam' ? 'Giám thị: ' : 'Giáo viên: '}{item.teacher_email}</Text>}
-      {user.role === 'teacher' && item.schedule_type !== 'exam' && (
-         <Text style={{color: '#D32F2F', fontSize: 13, fontWeight: 'bold', marginTop: 10, alignSelf: 'flex-end'}}>
-            👉 Bấm để Tạo QR Điểm Danh
-         </Text>
-      )}
+      {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 {item.teacher_email}</Text>}
+      {user.role === 'teacher' && <Text style={{fontSize: 10, color: '#1B5E20', marginTop: 4, fontStyle: 'italic'}}>Nhấn giữ để sửa</Text>}
     </TouchableOpacity>
-  );
-
-  const renderGradeItem = ({ item }: { item: GradeItem }) => (
-    <View style={styles.gradeCard}>
-      <Text style={styles.gradeSubject}>{item.subject_name}</Text>
-      <View style={styles.gradeGrid}>
-         <View style={styles.gradeCol}>
-            <Text style={styles.gradeLabel}>Điểm danh</Text>
-            <Text style={styles.gradeValue}>{item.attendance_score !== null ? item.attendance_score : '-'}</Text>
-         </View>
-         <View style={styles.gradeCol}>
-            <Text style={styles.gradeLabel}>Giữa kỳ</Text>
-            <Text style={styles.gradeValue}>{item.midterm_score !== null ? item.midterm_score : '-'}</Text>
-         </View>
-         <View style={styles.gradeCol}>
-            <Text style={styles.gradeLabel}>Cuối kỳ</Text>
-            <Text style={styles.gradeValue}>{item.final_score !== null ? item.final_score : '-'}</Text>
-         </View>
-         <View style={styles.gradeCol}>
-            <Text style={styles.gradeLabel}>Tổng kết</Text>
-            <Text style={[styles.gradeValue, {fontWeight: 'bold', color: '#B71C1C'}]}>{item.overall_score !== null ? item.overall_score : '-'}</Text>
-         </View>
-      </View>
-    </View>
   );
 
   const renderDocItem = ({ item }: { item: DocumentItem }) => (
@@ -294,250 +341,289 @@ export default function LMSScreen() {
           <Text style={styles.docTypeBadge}>{item.file_type.toUpperCase()}</Text>
        </View>
        <Text style={styles.docDesc}>Môn: {item.subject_name}</Text>
-       <Text style={styles.docDesc}>Người đăng: {item.uploader_email || 'N/A'}</Text>
-       <TouchableOpacity style={styles.viewDocBtn} onPress={() => Alert.alert('Thông báo', 'Tính năng xem file đang được phát triển.')}>
-          <Text style={styles.viewDocText}>Tải xuống / Xem file</Text>
+       <TouchableOpacity style={styles.viewDocBtn} onPress={() => handleViewFile(item.file_url)}>
+          <Text style={styles.viewDocText}>📄 Xem / Tải Xuống Tài Liệu</Text>
        </TouchableOpacity>
     </View>
   );
 
+  const filteredSchedules = schedules.filter(s => 
+    s.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.schedule_date.includes(searchQuery)
+  );
+  const studySchedules = filteredSchedules.filter(s => s.schedule_type !== 'exam');
+  const examSchedules = filteredSchedules.filter(s => s.schedule_type === 'exam');
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
-      
-      <View style={styles.tabBar}>
-         <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
-            <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
-         </TouchableOpacity>
-         <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
-            <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
-         </TouchableOpacity>
-         <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
-            <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
-         </TouchableOpacity>
-         {user.role === 'student' && (
-            <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
-               <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
-            </TouchableOpacity>
-         )}
-      </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
+        
+        <View style={styles.tabBar}>
+          <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
+              <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
+              <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
+              <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+          </TouchableOpacity>
+          {user.role === 'student' && (
+              <>
+                <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
+                  <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
+                  <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
+                </TouchableOpacity>
+              </>
+          )}
+        </View>
 
-      {user.role === 'student' && viewMode === 'study' && (
-         <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
-            <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
-         </TouchableOpacity>
-      )}
+        {user.role === 'student' && viewMode === 'study' && (
+          <TouchableOpacity style={styles.scanBtn} onPress={() => setShowScanner(true)}>
+              <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
+          </TouchableOpacity>
+        )}
 
-      {viewMode === 'documents' && user.role === 'teacher' && (
-         <TouchableOpacity style={styles.addDocBtn} onPress={() => { setUploadModalVisible(true); fetchSubjects(); }}>
-            <Text style={styles.addDocBtnText}>➕ TẢI TÀI LIỆU LÊN</Text>
-         </TouchableOpacity>
-      )}
-
-      {viewMode === 'study' ? (
-        loading ? (
-          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-        ) : studySchedules.length === 0 ? (
-          <Text style={styles.emptyText}>Chưa có lịch học nào.</Text>
-        ) : (
-          <FlatList
-            data={studySchedules}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            contentContainerStyle={{ padding: 16 }}
-          />
-        )
-      ) : viewMode === 'exam' ? (
-        loading ? (
-          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-        ) : examSchedules.length === 0 ? (
-          <Text style={styles.emptyText}>Chưa có lịch thi nào.</Text>
-        ) : (
-          <FlatList
-            data={examSchedules}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            contentContainerStyle={{ padding: 16 }}
-          />
-        )
-      ) : viewMode === 'documents' ? (
-        loadingDocs ? (
-          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-        ) : documents.length === 0 ? (
-          <Text style={styles.emptyText}>Chưa có tài liệu học tập.</Text>
-        ) : (
-          <FlatList
-            data={documents}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderDocItem}
-            contentContainerStyle={{ padding: 16 }}
-          />
-        )
-      ) : (
-         loadingGrades ? (
-          <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-        ) : grades.length === 0 ? (
-          <Text style={styles.emptyText}>Chưa có điểm số.</Text>
-        ) : (
-          <FlatList 
-             data={grades}
-             keyExtractor={(item) => item.id.toString()}
-             renderItem={renderGradeItem}
-             contentContainerStyle={{ padding: 16 }}
-          />
-        )
-      )}
-
-      {/* 🔴 Teacher Upload Modal */}
-      <Modal visible={uploadModalVisible} animationType="slide" transparent={true}>
-         <View style={styles.modalBackDrop}>
-            <View style={styles.modalContent}>
-               <Text style={styles.modalTitle}>Tải Tài Liệu Lên</Text>
-               <ScrollView style={{width: '100%', maxHeight: 400}}>
-                  <Text style={styles.label}>Tiêu Đề:</Text>
-                  <TextInput style={styles.input} placeholder="Vd: Slide chương 1" value={docTitle} onChangeText={setDocTitle} />
-                  
-                  <Text style={styles.label}>Môn Học:</Text>
-                  <View style={{maxHeight: 120, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 8, marginBottom: 15}}>
-                     <ScrollView nestedScrollEnabled={true}>
-                        {subjectsList.map((sub) => (
-                           <TouchableOpacity key={sub.id} style={[styles.subItem, selectedSubId === sub.id && styles.subItemActive]} onPress={() => setSelectedSubId(sub.id)}>
-                              <Text style={{color: selectedSubId === sub.id ? '#FFF' : '#333', fontSize: 13}}>{sub.name}</Text>
-                           </TouchableOpacity>
-                        ))}
-                     </ScrollView>
-                  </View>
-
-                  <Text style={styles.label}>Chọn File:</Text>
-                  <TouchableOpacity style={styles.pickBtn} onPress={pickDocument}>
-                     <Text style={{color: '#1976D2', fontSize: 13, fontWeight: 'bold'}}>{pickedFile ? `📄 ${pickedFile.name}` : '➕ Chọn file...'}</Text>
-                  </TouchableOpacity>
-               </ScrollView>
-
-               <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, width: '100%'}}>
-                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setUploadModalVisible(false)} disabled={uploading}>
-                     <Text style={styles.btnText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#2E7D32'}]} onPress={handleUpload} disabled={uploading}>
-                     {uploading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.btnText}>Tải Lên</Text>}
-                  </TouchableOpacity>
-               </View>
-            </View>
-         </View>
-      </Modal>
-
-      {/* 🔴 Student Scanner Modal ... rest of file ... */}
-
-
-      {/* 🔴 Student Scanner Modal */}
-      <Modal visible={showScanner} animationType="slide">
-         <View style={styles.cameraBackdrop}>
-            <Text style={{color: '#FFF', fontSize: 16, marginBottom: 20, fontWeight: 'bold'}}>Hướng Camera vào Mã QR trên máy Giáo viên</Text>
-            <CameraView 
-               style={styles.cameraView} 
-               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-               onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+        {(viewMode === 'study' || viewMode === 'exam') && (
+          <View style={styles.searchContainer}>
+            <TextInput 
+              style={styles.searchInput} 
+              placeholder="🔍 Tìm theo môn hoặc ngày (YYYY-MM-DD)..." 
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
-            <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}>
-               <Text style={{color: '#FFF', fontWeight: 'bold'}}>HỦY</Text>
-            </TouchableOpacity>
-         </View>
-      </Modal>
+          </View>
+        )}
 
-      {/* 🔵 Teacher Modal (Attendee & QR generator) */}
-      <Modal visible={!!selectedSchedule} animationType="fade" transparent={true}>
-         <View style={styles.modalBackDrop}>
-            <View style={styles.modalContent}>
-               <Text style={styles.modalTitle}>Điểm Danh Lớp Học</Text>
-               <Text style={{fontSize: 14, color: '#666', marginBottom: 15, textAlign: 'center'}}>{selectedSchedule?.subject_name}</Text>
-               
-               <Image 
-                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedSchedule?.id}` }}
-                  style={styles.qrImage}
-               />
-               <Text style={{fontSize: 12, color: '#D32F2F', marginBottom: 15, fontStyle: 'italic'}}>Quét mã trên (Mạng lan Wi-Fi) để xác thực</Text>
-
-               <Text style={{alignSelf: 'flex-start', fontWeight: 'bold', marginBottom: 6, color: '#333'}}>Danh sách Sinh Viên đã đến ({attendees.length}):</Text>
-               
-               {loadingAttendees ? <ActivityIndicator size="small" color="#D32F2F" /> : (
-                  <FlatList 
-                     data={attendees}
-                     keyExtractor={(a) => a.id.toString()}
-                     style={{width: '100%', maxHeight: 160, marginBottom: 15}}
-                     renderItem={({item}) => (
-                        <View style={styles.attendeeItem}>
-                            <Text style={{fontWeight: '500', fontSize: 13}}>{item.full_name || 'Học viên'}</Text>
-                            <Text style={{color: '#666', fontSize: 11}}>{item.email}</Text>
-                        </View>
-                     )}
-                     ListEmptyComponent={<Text style={{textAlign: 'center', color: '#999', fontSize: 13, marginTop: 10}}>Chưa có sinh viên nào điểm danh.</Text>}
-                  />
-               )}
-
-               <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedSchedule(null)}>
-                  <Text style={{color: '#FFF', fontWeight: 'bold'}}>Đóng</Text>
-               </TouchableOpacity>
+        {viewMode === 'study' ? (
+          <FlatList data={studySchedules} keyExtractor={s => s.id.toString()} renderItem={renderItem} contentContainerStyle={{padding: 16}} />
+        ) : viewMode === 'exam' ? (
+          <FlatList data={examSchedules} keyExtractor={s => s.id.toString()} renderItem={renderItem} contentContainerStyle={{padding: 16}} />
+        ) : viewMode === 'documents' ? (
+          <FlatList data={documents} keyExtractor={d => d.id.toString()} renderItem={renderDocItem} contentContainerStyle={{padding: 16}} />
+        ) : viewMode === 'attendance' ? (
+          <FlatList data={attendances} keyExtractor={a => a.id.toString()} renderItem={({item}) => (
+            <View style={styles.attendanceCard}>
+               <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <Text style={styles.subjName}>{item.subject_name}</Text>
+                  <Text style={[styles.statusBadge, {color: item.status === 'present' ? '#2E7D32' : '#D32F2F'}]}>
+                    {item.status === 'present' ? '✓ CÓ MẶT' : '✕ VẮNG'}
+                  </Text>
+               </View>
+               <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+               <Text style={styles.cardText}>⏰ Thời gian: {new Date(item.scanned_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}</Text>
+               <Text style={styles.cardText}>📍 IP: {item.network_ip || 'N/A'}</Text>
             </View>
-         </View>
-      </Modal>
-    </View>
+          )} contentContainerStyle={{padding: 16}} />
+        ) : (
+          <FlatList data={grades} keyExtractor={g => g.id.toString()} renderItem={({item}) => (
+            <View style={styles.gradeCard}>
+              <Text style={styles.gradeSubject}>{item.subject_name}</Text>
+              <View style={styles.gradeGrid}>
+                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Điểm danh</Text><Text style={styles.gradeValue}>{item.attendance_score || '-'}</Text></View>
+                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Giữa kỳ</Text><Text style={styles.gradeValue}>{item.midterm_score || '-'}</Text></View>
+                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Cuối kỳ</Text><Text style={styles.gradeValue}>{item.final_score || '-'}</Text></View>
+                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Tổng kết</Text><Text style={[styles.gradeValue, {color: '#B71C1C'}]}>{item.overall_score || '-'}</Text></View>
+              </View>
+            </View>
+          )} contentContainerStyle={{padding: 16}} />
+        )}
+
+        <Modal visible={showScanner} animationType="slide">
+          <View style={styles.cameraBackdrop}>
+              <CameraView style={styles.cameraView} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} />
+              <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}><Text style={{color: '#FFF'}}>Đóng</Text></TouchableOpacity>
+          </View>
+        </Modal>
+
+        {/* QR Code Modal for Teacher */}
+        <Modal visible={!!selectedSchedule} animationType="fade" transparent={true}>
+           <View style={styles.modalBackDrop}>
+              <View style={[styles.modalContent, {alignItems: 'center'}]}>
+                  <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 10}}>{selectedSchedule?.subject_name}</Text>
+                  <Text style={{fontSize: 12, color: '#666', marginBottom: 20}}>Sinh viên quét mã bên dưới để điểm danh</Text>
+                  
+                  {selectedSchedule && (
+                    <Image 
+                      source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${selectedSchedule.id}` }} 
+                      style={{ width: 220, height: 220 }}
+                    />
+                  )}
+
+                  <TouchableOpacity 
+                    style={[styles.scanBtn, {backgroundColor: '#B71C1C', marginTop: 30, width: '100%'}]} 
+                    onPress={() => setSelectedSchedule(null)}
+                  >
+                    <Text style={{color: '#FFF', fontWeight: 'bold'}}>ĐÓNG</Text>
+                  </TouchableOpacity>
+              </View>
+           </View>
+        </Modal>
+
+        {/* Add Schedule Modal for Teacher */}
+        <Modal visible={addModalVisible} animationType="slide" transparent={true}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalBackDrop}>
+              <View style={styles.modalContent}>
+                <Text style={styles.label}>Môn Học (*):</Text>
+                <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                  <Text style={{color: selectedSubId ? '#000' : '#888'}}>
+                    {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
+                  </Text>
+                </TouchableOpacity>
+
+                {subjectDropdownVisible && (
+                  <View style={styles.dropdownOverlay}>
+                    <TextInput 
+                      style={styles.dropdownSearchInside} 
+                      placeholder="Tìm môn học..." 
+                      value={subFilter}
+                      onChangeText={setSubFilter}
+                    />
+                    <ScrollView 
+                      nestedScrollEnabled 
+                      style={{maxHeight: 120}}
+                    >
+                      {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subFilter.toLowerCase())).map((item: any) => (
+                        <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(item.id); setSubjectDropdownVisible(false); }}>
+                          <Text style={{fontSize: 14}}>{item.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <TextInput style={styles.inputNarrow} placeholder="Phòng học (VD: A1.101)" value={roomName} onChangeText={setRoomName} />
+                
+                {/* Date Selection */}
+                <Text style={styles.label}>Ngày giảng dạy:</Text>
+                {Platform.OS === 'web' ? (
+                  <TextInput 
+                    style={styles.inputNarrow} 
+                    {...({ type: 'date' } as any)}
+                    value={schDate.toISOString().split('T')[0]} 
+                    onChangeText={(v: any) => setSchDate(new Date(v))} 
+                  />
+                ) : (
+                  <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowDatePicker(true)}>
+                    <Text>📅 {schDate.toLocaleDateString('vi-VN')}</Text>
+                  </TouchableOpacity>
+                )}
+
+                {showDatePicker && Platform.OS !== 'web' && (
+                  <DateTimePicker 
+                    value={schDate} mode="date" display="default" 
+                    onChange={(e, d) => { setShowDatePicker(false); if (d) setSchDate(d); }} 
+                  />
+                )}
+
+                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                   <View style={{flex: 0.48}}>
+                      <Text style={styles.label}>Bắt đầu:</Text>
+                      {Platform.OS === 'web' ? (
+                        <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={sTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h,m] = v.split(':'); nd.setHours(parseInt(h),parseInt(m)); setSTime(nd); }} />
+                      ) : (
+                        <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
+                          <Text>⏰ {sTime.toTimeString().substring(0, 5)}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {showSTimePicker && Platform.OS !== 'web' && (
+                        <DateTimePicker value={sTime} mode="time" display="default" onChange={(e, d) => { setShowSTimePicker(false); if (d) setSTime(d); }} />
+                      )}
+                   </View>
+                   <View style={{flex: 0.48}}>
+                      <Text style={styles.label}>Kết thúc:</Text>
+                      {Platform.OS === 'web' ? (
+                        <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={eTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h,m] = v.split(':'); nd.setHours(parseInt(h),parseInt(m)); setETime(nd); }} />
+                      ) : (
+                        <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
+                          <Text>⏰ {eTime.toTimeString().substring(0, 5)}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {showETimePicker && Platform.OS !== 'web' && (
+                        <DateTimePicker value={eTime} mode="time" display="default" onChange={(e, d) => { setShowETimePicker(false); if (d) setETime(d); }} />
+                      )}
+                   </View>
+                </View>
+
+                <View style={{flexDirection: 'row', marginBottom: 20}}>
+                   <TouchableOpacity style={[styles.miniBtn, schType === 'theory' && styles.miniBtnActive]} onPress={() => setSchType('theory')}>
+                      <Text style={[styles.miniBtnText, schType === 'theory' && {color:'#FFF'}]}>Lý Thuyết</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity style={[styles.miniBtn, schType === 'practice' && styles.miniBtnActive]} onPress={() => setSchType('practice')}>
+                      <Text style={[styles.miniBtnText, schType === 'practice' && {color:'#FFF'}]}>Thực Hành</Text>
+                   </TouchableOpacity>
+                </View>
+
+                 <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => { setAddModalVisible(false); resetAddModal(); }}><Text style={{color:'#333'}}>Hủy</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1B5E20'}]} onPress={handleAddSchedule}><Text style={{color:'#FFF', fontWeight:'bold'}}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text></TouchableOpacity>
+                 </View>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        {user.role === 'teacher' && viewMode === 'study' && (
+          <TouchableOpacity style={styles.fab} onPress={() => setAddModalVisible(true)}>
+             <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA', paddingVertical: 16 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginBottom: 10 },
-  
-  tabBar: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 16, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#DDD', marginBottom: 10 },
-  tabItem: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginVertical: 10 },
+  tabBar: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#DDD' },
+  tabItem: { flex: 1, paddingVertical: 10, alignItems: 'center' },
   tabItemActive: { backgroundColor: '#B71C1C' },
   tabText: { fontWeight: 'bold', color: '#666' },
   tabTextActive: { color: '#FFF' },
-
-  scanBtn: { backgroundColor: '#1B5E20', marginHorizontal: 16, padding: 14, borderRadius: 10, alignItems: 'center', marginVertical: 8, elevation: 3 },
-  scanBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-  emptyText: { textAlign: 'center', color: '#888', marginTop: 30 },
-
-  card: { backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginBottom: 12, marginHorizontal: 16, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  subjName: { fontSize: 16, fontWeight: 'bold', color: '#333', flex: 1 },
-  roomBadge: { backgroundColor: '#E0F2F1', color: '#00695C', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontSize: 12, fontWeight: 'bold' },
-  cardText: { fontSize: 13, color: '#666', marginTop: 4 },
-
-  gradeCard: { backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginBottom: 12, marginHorizontal: 16, elevation: 2, borderWidth: 1, borderColor: '#F0F0F0' },
-  gradeSubject: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 },
-  gradeGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-  gradeCol: { alignItems: 'center', flex: 1 },
-  gradeLabel: { fontSize: 11, color: '#777', marginBottom: 4 },
-  gradeValue: { fontSize: 15, color: '#333', fontWeight: '500' },
-
+  scanBtn: { backgroundColor: '#1B5E20', margin: 16, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
+  scanBtnText: { color: '#FFF', fontWeight: 'bold' },
+  searchContainer: { paddingHorizontal: 16, paddingVertical: 10 },
+  searchInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 8, fontSize: 13 },
+  card: { backgroundColor: '#FFF', padding: 16, borderRadius: 8, marginBottom: 10, marginHorizontal: 16, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  subjName: { fontWeight: 'bold', flex: 1 },
+  roomBadge: { fontSize: 10, fontWeight: 'bold', padding: 4, borderRadius: 4 },
+  cardText: { fontSize: 12, color: '#666', marginTop: 2 },
+  docCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#1976D2' },
+  docTitle: { fontWeight: 'bold', color: '#1B5E20' },
+  docTypeBadge: { fontSize: 10, backgroundColor: '#E3F2FD', padding: 2 },
+  docDesc: { fontSize: 11, color: '#888' },
+  viewDocBtn: { backgroundColor: '#F0F7FF', padding: 8, borderRadius: 4, marginTop: 10, alignItems: 'center' },
+  viewDocText: { color: '#1976D2', fontWeight: 'bold' },
+  gradeCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, elevation: 1 },
+  gradeSubject: { fontWeight: 'bold', marginBottom: 10 },
+  gradeGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  gradeCol: { alignItems: 'center' },
+  gradeLabel: { fontSize: 10, color: '#999' },
+  gradeValue: { fontWeight: 'bold' },
   cameraBackdrop: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  cameraView: { width: '80%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
-  closeCamBtn: { backgroundColor: '#D32F2F', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 },
-
+  cameraView: { width: '80%', aspectRatio: 1 },
+  closeCamBtn: { backgroundColor: '#D32F2F', padding: 10, marginTop: 20 },
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 16, alignItems: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#D32F2F', marginBottom: 4 },
-  qrImage: { width: 180, height: 180, marginBottom: 10 },
-  attendeeItem: { width: '100%', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  closeBtn: { backgroundColor: '#D32F2F', width: '100%', padding: 12, borderRadius: 8, alignItems: 'center' },
-
-  // Docs styles
-  docCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, marginBottom: 12, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#1976D2' },
-  docTitle: { fontSize: 15, fontWeight: 'bold', color: '#1B5E20', flex: 1 },
-  docTypeBadge: { backgroundColor: '#E3F2FD', color: '#1976D2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 10, fontWeight: 'bold' },
-  docDesc: { fontSize: 12, color: '#666', marginTop: 4 },
-  viewDocBtn: { backgroundColor: '#F0F7FF', padding: 10, borderRadius: 8, marginTop: 10, alignItems: 'center', borderWidth: 1, borderColor: '#1976D2' },
-  viewDocText: { color: '#1976D2', fontSize: 13, fontWeight: 'bold' },
-
-  // Teacher Upload styles
-  addDocBtn: { backgroundColor: '#1B5E20', padding: 12, borderRadius: 10, marginHorizontal: 16, marginVertical: 10, alignItems: 'center' },
-  addDocBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-  label: { fontSize: 13, color: '#555', marginBottom: 4, fontWeight: 'bold' },
-  input: { width: '100%', height: 44, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, marginBottom: 15 },
-  subItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  subItemActive: { backgroundColor: '#2E7D32' },
-  pickBtn: { borderWidth: 1, borderColor: '#1976D2', borderStyle: 'dashed', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
-  modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 8 },
-  btnText: { color: '#FFF', fontWeight: 'bold' }
+  modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 10 },
+  label: { fontSize: 13, fontWeight: 'bold', color: '#444', marginBottom: 5 },
+  inputNarrow: { borderWidth: 1, borderColor: '#DDD', padding: 8, borderRadius: 6, marginBottom: 12, fontSize: 13 },
+  miniBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, backgroundColor: '#F0F0F0', marginRight: 8, height: 32, justifyContent: 'center' },
+  miniBtnActive: { backgroundColor: '#B71C1C' },
+  miniBtnText: { fontSize: 11, color: '#666' },
+  modalBtn: { padding: 12, borderRadius: 6, flex: 0.48, alignItems: 'center' },
+  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#B71C1C', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+  attendanceCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#2E7D32', elevation: 1 },
+  statusBadge: { fontSize: 11, fontWeight: 'bold' },
+  dropdownSearch: { backgroundColor: '#F9F9F9', borderRadius: 8, borderWidth: 1, borderColor: '#EEE', paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10, fontSize: 13 },
+  inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
+  dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  dropdownSearchInside: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
 });

@@ -33,17 +33,26 @@ const StackScreenStructure = () => {
 
     const firstSegment = segments[0] as string;
     const inAuthGroup = firstSegment === '(tabs)' || firstSegment === '(admin-tabs)';
-    const isLoginPage = firstSegment === 'login';
-    const isRoot = !firstSegment || firstSegment === 'index';
 
-    if (!user && inAuthGroup) {
-      router.replace('/login');
+    const isLoginPage = firstSegment === 'login';
+    const isRoot = !firstSegment || firstSegment === 'index' || firstSegment === '';
+
+    if (!user && (inAuthGroup || isRoot)) {
+      // Small timeout to ensure the navigator is ready
+      const timer = setTimeout(() => {
+        router.replace('/login');
+      }, 1);
+      return () => clearTimeout(timer);
     } else if (user && (isLoginPage || isRoot)) {
+      // Redirect to dashboard if logged in but on login or splash page
+      const timer = setTimeout(() => {
         if (user.role === 'admin') {
-            router.replace('/(admin-tabs)');
+          router.replace('/(admin-tabs)');
         } else {
-            router.replace('/(tabs)');
+          router.replace('/(tabs)');
         }
+      }, 1);
+      return () => clearTimeout(timer);
     }
   }, [user, segments, navigationState?.key]);
 

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
+import { 
+  View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, 
+  TouchableOpacity, Modal, TextInput, Platform, Keyboard,
+  TouchableWithoutFeedback, ScrollView
+} from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -19,10 +23,36 @@ export default function AdminUsersScreen() {
   // Student Profile Profile states
   const [fullName, setFullName] = useState('');
   const [studentCode, setStudentCode] = useState('');
+  const [classId, setClassId] = useState('');
+  const [majorId, setMajorId] = useState('');
+
+  // Dropdown lists
+  const [classList, setClassList] = useState([]);
+  const [majorList, setMajorList] = useState([]);
+  const [classDropdownVisible, setClassDropdownVisible] = useState(false);
+  const [majorDropdownVisible, setMajorDropdownVisible] = useState(false);
+  const [classFilter, setClassFilter] = useState('');
+  const [majorFilter, setMajorFilter] = useState('');
 
   useEffect(() => {
     fetchUsers();
+    fetchClasses();
+    fetchMajors();
   }, []);
+
+  const fetchClasses = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/classes`);
+      if (res.data.success) setClassList(res.data.data);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchMajors = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/majors`);
+      if (res.data.success) setMajorList(res.data.data);
+    } catch (e) { console.error(e); }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -46,6 +76,12 @@ export default function AdminUsersScreen() {
     setStatus(item.status);
     setFullName(item.full_name || '');
     setStudentCode(item.student_code || '');
+    setClassId(item.class_id ? item.class_id.toString() : '');
+    setMajorId(item.major_id ? item.major_id.toString() : '');
+    setClassDropdownVisible(false);
+    setMajorDropdownVisible(false);
+    setClassFilter('');
+    setMajorFilter('');
     setModalVisible(true);
   };
 
@@ -54,28 +90,36 @@ export default function AdminUsersScreen() {
     setSelectedId(null);
     setEmail(''); setPassword(''); setRole('student'); setStatus('active');
     setFullName(''); setStudentCode('');
+    setClassId(''); setMajorId('');
+    setClassDropdownVisible(false);
+    setMajorDropdownVisible(false);
+    setClassFilter('');
+    setMajorFilter('');
     setModalVisible(true);
   };
 
   const handleSaveUser = async () => {
+    Keyboard.dismiss();
     if (!email || (!isEditing && !password)) {
       Alert.alert('Lỗi', 'Vui lòng điền đủ email/mật khẩu.');
       return;
     }
     try {
       if (isEditing && selectedId) {
-        // Cập nhật User Base (Role / Status)
-        await axios.put(`${API_URL}/admin/users/${selectedId}`, { role, status });
-        
-        // Nếu là Sinh Viên, cập nhật thêm Profile (Full Name)
-        if (role === 'student' && fullName) {
-           await axios.put(`${API_URL}/admin/students/${selectedId}`, { full_name: fullName });
+        if (role === 'student') {
+           const studentPayload = { 
+             full_name: fullName, 
+             class_id: classId ? parseInt(classId) : null,
+             major_id: majorId ? parseInt(majorId) : null
+           };
+           await axios.put(`${API_URL}/admin/students/${selectedId}`, studentPayload);
         }
         Alert.alert('Thành công', 'Cập nhật tài khoản hoàn tất.');
       } else {
-        // Gọi API Đăng ký tài khoản mới 
         const res = await axios.post(`${API_URL}/auth/register`, { 
-           email, password, role, fullName, studentCode 
+           email, password, role, fullName, studentCode,
+           classId: classId ? parseInt(classId) : null,
+           majorId: majorId ? parseInt(majorId) : null
         });
         if (res.data.success) { Alert.alert('Thành công', 'Đã tạo tài khoản mới.'); }
       }
@@ -129,53 +173,112 @@ export default function AdminUsersScreen() {
 
       {/* Modal CRUD User */}
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalBackDrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{isEditing ? 'Cập Nhật Tài Khoản' : 'Thêm Tài Khoản Mới'}</Text>
-            
-            <TextInput style={styles.input} placeholder="Email..." keyboardType="email-address" value={email} onChangeText={setEmail} editable={!isEditing} />
-            {!isEditing && <TextInput style={styles.input} placeholder="Password..." secureTextEntry value={password} onChangeText={setPassword} />}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalBackDrop}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalContent}>
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>{isEditing ? 'Cập Nhật Tài Khoản' : 'Thêm Tài Khoản Mới'}</Text>
+                
+                <TextInput style={styles.input} placeholder="Email..." keyboardType="email-address" value={email} onChangeText={setEmail} editable={!isEditing} />
+                {!isEditing && <TextInput style={styles.input} placeholder="Password..." secureTextEntry value={password} onChangeText={setPassword} />}
 
-            {/* Thêm Name / Mã cho Sinh Viên */}
-            {role === 'student' && (
-              <>
-                <TextInput style={styles.input} placeholder="Họ và Tên..." value={fullName} onChangeText={setFullName} />
-                {!isEditing && <TextInput style={styles.input} placeholder="Mã Sinh Viên (SVxxx)..." value={studentCode} onChangeText={setStudentCode} />}
-              </>
-            )}
+                {role === 'student' && (
+                  <View style={{zIndex: 1000}}>
+                    <TextInput style={styles.input} placeholder="Họ và Tên..." value={fullName} onChangeText={setFullName} />
+                    {!isEditing && <TextInput style={styles.input} placeholder="Mã Sinh Viên (SVxxx)..." value={studentCode} onChangeText={setStudentCode} />}
+                    
+                    {/* Class Selector */}
+                    <TouchableOpacity style={styles.inputPicker} onPress={() => setClassDropdownVisible(!classDropdownVisible)}>
+                      <Text style={{color: classId ? '#000' : '#888'}}>
+                        {classId ? (classList.find((c: any) => c.id.toString() === classId) as any)?.name || 'Lớp' : 'Chọn Lớp Học'}
+                      </Text>
+                    </TouchableOpacity>
+                    {classDropdownVisible && (
+                      <View style={styles.dropdownOverlay}>
+                        <TextInput 
+                          style={styles.dropdownSearch} 
+                          placeholder="Tìm lớp..." 
+                          value={classFilter}
+                          onChangeText={setClassFilter}
+                        />
+                        <ScrollView 
+                          nestedScrollEnabled 
+                          style={{maxHeight: 120}}
+                        >
+                          {classList.filter((c: any) => c.name.toLowerCase().includes(classFilter.toLowerCase())).map((item: any) => (
+                            <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setClassId(item.id.toString()); setClassDropdownVisible(false); }}>
+                              <Text style={{fontSize: 14}}>{item.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
 
-            <Text style={{fontSize: 14, color: '#444', marginBottom: 6, fontWeight: 'bold'}}>Vai trò (Role):</Text>
-            <View style={{flexDirection: 'row', marginBottom: 12}}>
-              {['student', 'teacher', 'admin'].map((r) => (
-                <TouchableOpacity key={r} style={[styles.roleBtn, role === r && styles.roleBtnActive]} onPress={() => setRole(r as any)}>
-                  <Text style={[styles.roleBtnText, role === r && {color: '#FFF'}]}>{r.toUpperCase()}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    {/* Major Selector */}
+                    <TouchableOpacity style={styles.inputPicker} onPress={() => setMajorDropdownVisible(!majorDropdownVisible)}>
+                      <Text style={{color: majorId ? '#000' : '#888'}}>
+                        {majorId ? (majorList.find((m: any) => m.id.toString() === majorId) as any)?.name || 'Ngành' : 'Chọn Khoa/Ngành'}
+                      </Text>
+                    </TouchableOpacity>
+                    {majorDropdownVisible && (
+                      <View style={styles.dropdownOverlay}>
+                        <TextInput 
+                          style={styles.dropdownSearch} 
+                          placeholder="Tìm khoa/ngành..." 
+                          value={majorFilter}
+                          onChangeText={setMajorFilter}
+                        />
+                        <ScrollView 
+                          nestedScrollEnabled 
+                          style={{maxHeight: 120}}
+                        >
+                          {majorList.filter((m: any) => m.name.toLowerCase().includes(majorFilter.toLowerCase())).map((item: any) => (
+                            <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setMajorId(item.id.toString()); setMajorDropdownVisible(false); }}>
+                              <Text style={{fontSize: 14}}>{item.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                )}
 
-            {isEditing && (
-              <>
-                <Text style={{fontSize: 14, color: '#444', marginBottom: 6, fontWeight: 'bold'}}>Trạng thái:</Text>
-                <View style={{flexDirection: 'row', marginBottom: 16}}>
-                  {['active', 'banned'].map((s) => (
-                    <TouchableOpacity key={s} style={[styles.roleBtn, status === s && styles.roleBtnActive]} onPress={() => setStatus(s as any)}>
-                      <Text style={[styles.roleBtnText, status === s && {color: '#FFF'}]}>{s.toUpperCase()}</Text>
+                <Text style={{fontSize: 14, color: '#444', marginBottom: 6, fontWeight: 'bold'}}>Vai trò (Role):</Text>
+                <View style={{flexDirection: 'row', marginBottom: 12}}>
+                  {['student', 'teacher', 'admin'].map((r) => (
+                    <TouchableOpacity key={r} style={[styles.roleBtn, role === r && styles.roleBtnActive]} onPress={() => setRole(r as any)}>
+                      <Text style={[styles.roleBtnText, role === r && {color: '#FFF'}]}>{r.toUpperCase()}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </>
-            )}
 
-            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10}}>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setModalVisible(false)}>
-                <Text style={styles.btnText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSaveUser}>
-                <Text style={styles.btnText}>{isEditing ? 'Cập nhật' : 'Thêm mới'}</Text>
-              </TouchableOpacity>
-            </View>
+                {isEditing && (
+                  <>
+                    <Text style={{fontSize: 14, color: '#444', marginBottom: 6, fontWeight: 'bold'}}>Trạng thái:</Text>
+                    <View style={{flexDirection: 'row', marginBottom: 16}}>
+                      {['active', 'banned'].map((s) => (
+                        <TouchableOpacity key={s} style={[styles.roleBtn, status === s && styles.roleBtnActive]} onPress={() => setStatus(s as any)}>
+                          <Text style={[styles.roleBtnText, status === s && {color: '#FFF'}]}>{s.toUpperCase()}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10}}>
+                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setModalVisible(false)}>
+                    <Text style={styles.btnText}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSaveUser}>
+                    <Text style={styles.btnText}>{isEditing ? 'Cập nhật' : 'Thêm mới'}</Text>
+                  </TouchableOpacity>
+                </View>
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <TouchableOpacity style={styles.fab} onPress={openAddModal}>
@@ -194,8 +297,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
     elevation: 1,
   },
   userName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
@@ -203,25 +304,24 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', marginTop: 8 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 8 },
   badgeText: { fontSize: 11, fontWeight: 'bold', color: '#FFF' },
-  
   badge_student: { backgroundColor: '#2196F3' },
   badge_teacher: { backgroundColor: '#FF9800' },
   badge_admin: { backgroundColor: '#E91E63' },
   badge_active: { backgroundColor: '#4CAF50' },
   badge_banned: { backgroundColor: '#F44336' },
-
-  // Modal Styles
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, elevation: 5 },
+  modalContent: { backgroundColor: '#FFF', width: '85%', maxHeight: '90%', padding: 20, borderRadius: 12, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
   btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-
   roleBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#DDD', marginRight: 8, backgroundColor: '#F0F0F0' },
   roleBtnActive: { backgroundColor: '#D32F2F', borderColor: '#D32F2F' },
   roleBtnText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
-
-  fab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 80 : 20, right: 20, backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } },
-  fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' }
+  fab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 80 : 20, right: 20, backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+  inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
+  dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  dropdownSearch: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, Platform, ScrollView } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
@@ -24,6 +24,7 @@ export default function AdminExamsScreen() {
   if (!user) return null;
   const [exams, setExams] = useState<ExamItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Form states
   const [modalVisible, setModalVisible] = useState(false);
@@ -52,6 +53,8 @@ export default function AdminExamsScreen() {
   const [teachersList, setTeachersList] = useState([]);
   const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
   const [teacherDropdownVisible, setTeacherDropdownVisible] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [teacherFilter, setTeacherFilter] = useState('');
 
   useEffect(() => {
     fetchExams();
@@ -96,6 +99,8 @@ export default function AdminExamsScreen() {
     setEndTime(new Date());
     setSubjectDropdownVisible(false);
     setTeacherDropdownVisible(false);
+    setSubjectFilter('');
+    setTeacherFilter('');
     setModalVisible(true);
   };
 
@@ -114,6 +119,8 @@ export default function AdminExamsScreen() {
     setStartTime(st);
     setEndTime(et);
     
+    setSubjectFilter('');
+    setTeacherFilter('');
     setModalVisible(true);
   };
 
@@ -193,6 +200,11 @@ export default function AdminExamsScreen() {
     </View>
   );
 
+  const filteredExams = exams.filter(item => 
+    item.subject_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.schedule_date.includes(searchQuery)
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ 
@@ -207,21 +219,34 @@ export default function AdminExamsScreen() {
       
       {loading ? (
         <ActivityIndicator size="large" color="#D32F2F" style={{ marginTop: 20 }} />
-      ) : exams.length === 0 ? (
-        <Text style={styles.emptyText}>Chưa có lịch thi nào.</Text>
       ) : (
-        <FlatList
-          data={exams}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={{ padding: 16 }}
-        />
+        <>
+          <View style={styles.searchContainer}>
+            <TextInput 
+              style={styles.searchInput} 
+              placeholder="🔍 Tìm môn hoặc ngày (YYYY-MM-DD)..." 
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          {filteredExams.length === 0 ? (
+            <Text style={styles.emptyText}>Không tìm thấy lịch thi nào.</Text>
+          ) : (
+            <FlatList
+              data={filteredExams}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderItem}
+              contentContainerStyle={{ padding: 16 }}
+            />
+          )}
+        </>
       )}
 
       {/* Modal Cập Nhật / Thêm Mới */}
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalBackDrop}>
           <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>{editingId ? 'Chỉnh Sửa Lịch Thi' : 'Tạo Lịch Thi Mới'}</Text>
             
             {/* Dropdown Môn Học */}
@@ -233,21 +258,45 @@ export default function AdminExamsScreen() {
 
             {subjectDropdownVisible && (
               <View style={styles.dropdownOverlay}>
-                <FlatList nestedScrollEnabled style={{maxHeight: 150}} data={subjectsList} keyExtractor={(s: any) => s.id.toString()} renderItem={({item}: {item: any}) => (
-                  <TouchableOpacity style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
-                    <Text style={{fontSize: 14}}>{item.name}</Text>
-                  </TouchableOpacity>
-                )} />
+                <TextInput 
+                  style={styles.dropdownSearch} 
+                  placeholder="Tìm môn học..." 
+                  value={subjectFilter}
+                  onChangeText={setSubjectFilter}
+                />
+                <ScrollView 
+                  nestedScrollEnabled 
+                  style={{maxHeight: 150}}
+                >
+                  {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
+                    <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
+                      <Text style={{fontSize: 14}}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
             <TextInput style={styles.input} placeholder="Phòng thi (*)" value={roomName} onChangeText={setRoomName} />
             
             {/* Date Pickers */}
-            <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
-              <Text style={{color: '#000'}}>📅 Ngày thi: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
+            {Platform.OS === 'web' ? (
+              <TextInput 
+                style={styles.input} 
+                {...({ type: 'date' } as any)}
+                value={scheduleDate.toISOString().split('T')[0]} 
+                onChangeText={(text) => {
+                  const d = new Date(text);
+                  if (!isNaN(d.getTime())) setScheduleDate(d);
+                }}
+              />
+            ) : (
+              <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
+                <Text style={{color: '#000'}}>📅 Ngày thi: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
+              </TouchableOpacity>
+            )}
+
+            {showDatePicker && Platform.OS !== 'web' && (
               <DateTimePicker
                 value={scheduleDate}
                 mode="date"
@@ -260,15 +309,48 @@ export default function AdminExamsScreen() {
             )}
 
             <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-              <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
-                <Text style={{fontSize: 13, color: '#000'}}>⏰ Bắt đầu: {startTime.toTimeString().substring(0, 5)}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
-                <Text style={{fontSize: 13, color: '#000'}}>⏰ Kết thúc: {endTime.toTimeString().substring(0, 5)}</Text>
-              </TouchableOpacity>
+              {Platform.OS === 'web' ? (
+                <>
+                  <TextInput 
+                    style={[styles.input, {flex: 1, marginRight: 5}]} 
+                    {...({ type: 'time' } as any)}
+                    value={startTime.toTimeString().substring(0, 5)}
+                    onChangeText={(text) => {
+                      const [h, m] = text.split(':');
+                      if (h && m) {
+                        const d = new Date(startTime);
+                        d.setHours(parseInt(h), parseInt(m));
+                        setStartTime(d);
+                      }
+                    }}
+                  />
+                  <TextInput 
+                    style={[styles.input, {flex: 1, marginLeft: 5}]} 
+                    {...({ type: 'time' } as any)}
+                    value={endTime.toTimeString().substring(0, 5)}
+                    onChangeText={(text) => {
+                      const [h, m] = text.split(':');
+                      if (h && m) {
+                        const d = new Date(endTime);
+                        d.setHours(parseInt(h), parseInt(m));
+                        setEndTime(d);
+                      }
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
+                    <Text style={{fontSize: 13, color: '#000'}}>⏰ Bắt đầu: {startTime.toTimeString().substring(0, 5)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
+                    <Text style={{fontSize: 13, color: '#000'}}>⏰ Kết thúc: {endTime.toTimeString().substring(0, 5)}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
-            {showStartTimePicker && (
+            {showStartTimePicker && Platform.OS !== 'web' && (
               <DateTimePicker
                 value={startTime}
                 mode="time"
@@ -279,7 +361,7 @@ export default function AdminExamsScreen() {
                 }}
               />
             )}
-            {showEndTimePicker && (
+            {showEndTimePicker && Platform.OS !== 'web' && (
               <DateTimePicker
                 value={endTime}
                 mode="time"
@@ -302,12 +384,23 @@ export default function AdminExamsScreen() {
 
             {teacherDropdownVisible && (
               <View style={styles.dropdownOverlay}>
-                <FlatList nestedScrollEnabled style={{maxHeight: 150}} data={teachersList} keyExtractor={(t: any) => t.id.toString()} renderItem={({item}: {item: any}) => (
-                  <TouchableOpacity style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
-                    <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
-                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
-                  </TouchableOpacity>
-                )} />
+                <TextInput 
+                  style={styles.dropdownSearch} 
+                  placeholder="Tìm giám thị..." 
+                  value={teacherFilter}
+                  onChangeText={setTeacherFilter}
+                />
+                <ScrollView 
+                  nestedScrollEnabled 
+                  style={{maxHeight: 150}}
+                >
+                  {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
+                    <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
+                      <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
+                      {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
@@ -319,6 +412,7 @@ export default function AdminExamsScreen() {
                 <Text style={styles.btnText}>Lưu Lại</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -369,7 +463,7 @@ const styles = StyleSheet.create({
   editBtnText: { color: '#1976D2', fontWeight: 'bold', fontSize: 13 },
 
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#FFF', width: '90%', padding: 20, borderRadius: 12, elevation: 5 },
+  modalContent: { backgroundColor: '#FFF', width: '90%', maxHeight: '90%', padding: 20, borderRadius: 12, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 15 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
@@ -378,5 +472,8 @@ const styles = StyleSheet.create({
   // Dropdown Picker Styles
   inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#FAFAFA', justifyContent: 'center' },
   dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
-  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' }
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  searchContainer: { padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  searchInput: { backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 10, fontSize: 14 },
+  dropdownSearch: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
 });

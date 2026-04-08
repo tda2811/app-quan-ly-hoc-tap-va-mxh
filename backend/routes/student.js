@@ -12,7 +12,15 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+    filename: (req, file, cb) => {
+        const cleanName = file.originalname
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[đĐ]/g, "d")
+            .replace(/\s+/g, "-")
+            .replace(/[^a-zA-Z0-9.-]/g, "");
+        cb(null, Date.now() + '-' + cleanName);
+    }
 });
 
 const upload = multer({ storage });
@@ -207,6 +215,89 @@ router.post('/posts/comment', async (req, res) => {
         await db.query('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)', [post_id, user_id, content]);
         await db.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?', [post_id]);
         res.json({ success: true, message: 'Đã gửi bình luận.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+/**
+ * Lấy danh sách Nhóm mà Sinh viên đang tham gia
+ */
+router.get('/my-groups', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ success: false, message: 'Thiếu user_id' });
+    try {
+        const [groups] = await db.query(`
+            SELECT g.* 
+            FROM groups_table g
+            JOIN group_members gm ON g.id = gm.group_id
+            WHERE gm.user_id = ?
+        `, [user_id]);
+        res.json({ success: true, data: groups });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+/**
+ * Lấy lịch sử Điểm danh của Sinh viên
+ */
+router.get('/attendances', async (req, res) => {
+    const { student_id } = req.query;
+    if (!student_id) return res.status(400).json({ success: false, message: 'Thiếu student_id' });
+
+    try {
+        const [history] = await db.query(`
+            SELECT a.*, s.schedule_date, s.start_time, sub.name as subject_name, u.email as teacher_email
+            FROM attendances a
+            JOIN schedules s ON a.schedule_id = s.id
+            JOIN subjects sub ON s.subject_id = sub.id
+            LEFT JOIN users u ON s.teacher_id = u.id
+            WHERE a.student_id = ?
+            ORDER BY s.schedule_date DESC, s.start_time DESC
+        `, [student_id]);
+        
+        res.json({ success: true, data: history });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy lịch sử điểm danh: ' + error.message });
+    }
+});
+
+/**
+ * Lấy tất cả các Nhóm có sẵn để tham gia
+ */
+router.get('/all-groups', async (req, res) => {
+    const { user_id } = req.query;
+    try {
+        // Lấy tất cả groups và đánh dấu những group user đã tham gia
+        const [groups] = await db.query(`
+            SELECT g.*, 
+                   (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count,
+                   (SELECT role FROM group_members WHERE group_id = g.id AND user_id = ?) as joined_role
+            FROM groups_table g
+        `, [user_id]);
+        res.json({ success: true, data: groups });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+/**
+ * Tham gia vào một Nhóm
+ */
+router.post('/groups/join', async (req, res) => {
+    const { user_id, group_id } = req.body;
+    if (!user_id || !group_id) return res.status(400).json({ success: false, message: 'Thiếu user_id hoặc group_id' });
+
+    try {
+        // Kiểm tra xem đã tham gia chưa
+        const [exists] = await db.query('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?', [group_id, user_id]);
+        if (exists.length > 0) {
+            return res.status(400).json({ success: false, message: 'Bạn đã là thành viên của nhóm này rồi.' });
+        }
+
+        await db.query('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, "member")', [group_id, user_id]);
+        res.json({ success: true, message: 'Tham gia nhóm thành công!' });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }

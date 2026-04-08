@@ -119,6 +119,7 @@ export default function AdminDashboard() {
       <Modal visible={notifyModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalBackDrop}>
           <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>Phát Bản Tin Toàn Trường</Text>
             <TextInput style={styles.input} placeholder="Tiêu đề thông báo..." value={nTitle} onChangeText={setNTitle} />
             <TextInput style={[styles.input, {height: 80}]} multiline placeholder="Nội dung thông báo..." value={nMessage} onChangeText={setNMessage} />
@@ -131,6 +132,7 @@ export default function AdminDashboard() {
                 <Text style={styles.btnText}>Gửi đi</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
 
   // Modal Styles
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, elevation: 5 },
+  modalContent: { backgroundColor: '#FFF', width: '85%', maxHeight: '90%', padding: 20, borderRadius: 12, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F', textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#DDD', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
