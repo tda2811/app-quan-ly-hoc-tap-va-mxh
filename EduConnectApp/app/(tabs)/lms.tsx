@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, 
   ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput,
@@ -66,6 +66,7 @@ export default function LMSScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [showScanner, setShowScanner] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const isScanningRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [subFilter, setSubFilter] = useState('');
 
@@ -292,7 +293,8 @@ export default function LMSScreen() {
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (scanned) return;
+    if (isScanningRef.current) return;
+    isScanningRef.current = true;
     setScanned(true);
     setShowScanner(false);
     try {
@@ -301,11 +303,11 @@ export default function LMSScreen() {
         schedule_id: scheduleId,
         student_id: user.id
       });
-      if (res.data.success) Alert.alert('Thành công', 'Điểm danh thành công!');
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Điểm danh thành công!');
+      }
     } catch (error: any) {
         Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra.');
-    } finally {
-        setScanned(false);
     }
   };
 
@@ -382,7 +384,14 @@ export default function LMSScreen() {
         </View>
 
         {user.role === 'student' && viewMode === 'study' && (
-          <TouchableOpacity style={styles.scanBtn} onPress={() => setShowScanner(true)}>
+          <TouchableOpacity 
+            style={styles.scanBtn} 
+            onPress={() => {
+              setScanned(false);
+              isScanningRef.current = false;
+              setShowScanner(true);
+            }}
+          >
               <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
           </TouchableOpacity>
         )}
@@ -567,8 +576,15 @@ export default function LMSScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {user.role === 'teacher' && viewMode === 'study' && (
-          <TouchableOpacity style={styles.fab} onPress={() => setAddModalVisible(true)}>
+        {user.role === 'teacher' && (viewMode === 'study' || viewMode === 'exam') && (
+          <TouchableOpacity 
+            style={styles.fab} 
+            onPress={() => {
+              resetAddModal();
+              if (viewMode === 'exam') setSchType('exam' as any);
+              setAddModalVisible(true);
+            }}
+          >
              <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
         )}
@@ -617,7 +633,7 @@ const styles = StyleSheet.create({
   miniBtnActive: { backgroundColor: '#B71C1C' },
   miniBtnText: { fontSize: 11, color: '#666' },
   modalBtn: { padding: 12, borderRadius: 6, flex: 0.48, alignItems: 'center' },
-  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#B71C1C', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fab: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#B71C1C', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 },
   fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   attendanceCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#2E7D32', elevation: 1 },
   statusBadge: { fontSize: 11, fontWeight: 'bold' },

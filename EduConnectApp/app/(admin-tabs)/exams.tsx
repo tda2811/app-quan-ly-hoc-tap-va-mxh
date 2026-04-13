@@ -19,6 +19,252 @@ interface ExamItem {
   end_time: string;
 }
 
+// Separate Card component for List Items
+const ExamItemCard = React.memo(({ item, onEdit, onDelete }: { item: ExamItem, onEdit: (item: ExamItem) => void, onDelete: (id: number | string) => void }) => (
+  <View style={styles.card}>
+    <View style={styles.cardHeader}>
+      <Text style={styles.cardTitle}>{item.subject_name}</Text>
+      <Text style={styles.typeBadge}>LỊCH THI</Text>
+    </View>
+    <Text style={styles.cardDesc}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+    <Text style={styles.cardDesc}>Thời gian: {item.start_time} - {item.end_time}</Text>
+    <Text style={styles.cardDesc}>Phòng thi: {item.room_name}</Text>
+    <Text style={styles.cardDesc}>Giám thị: {item.teacher_email || 'Chờ phân công'}</Text>
+    <View style={styles.actRow}>
+      <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(item)}>
+        <Text style={styles.editBtnText}>Sửa</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(item.id)}>
+        <Text style={styles.deleteBtnText}>Xóa</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+));
+
+// Separate Modal Component to isolate form state
+const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teachersList }: any) => {
+  const [subjectId, setSubjectId] = useState('');
+  const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  const [roomName, setRoomName] = useState('');
+  const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+
+  const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
+  const [teacherDropdownVisible, setTeacherDropdownVisible] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [teacherFilter, setTeacherFilter] = useState('');
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      if (editingItem) {
+        setSubjectId(String(editingItem.subject_id));
+        setTeacherIds(editingItem.teacher_ids ? editingItem.teacher_ids.split(',').filter((d: any) => d) : []);
+        setRoomName(editingItem.room_name);
+        setScheduleDate(new Date(editingItem.schedule_date));
+        const stParts = editingItem.start_time.split(':');
+        const etParts = editingItem.end_time.split(':');
+        const st = new Date(); st.setHours(parseInt(stParts[0]), parseInt(stParts[1]), 0);
+        const et = new Date(); et.setHours(parseInt(etParts[0]), parseInt(etParts[1]), 0);
+        setStartTime(st);
+        setEndTime(et);
+      } else {
+        setSubjectId('');
+        setTeacherIds([]);
+        setRoomName('');
+        setScheduleDate(new Date());
+        setStartTime(new Date());
+        setEndTime(new Date());
+      }
+      setSubjectFilter('');
+      setTeacherFilter('');
+      setSubjectDropdownVisible(false);
+      setTeacherDropdownVisible(false);
+    }
+  }, [visible, editingItem]);
+
+  const toggleTeacher = (id: string) => {
+    setTeacherIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+  };
+
+  const handleLocalSave = () => {
+    if (!subjectId || !roomName) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin bắt buộc.');
+      return;
+    }
+    const payload = {
+      subject_id: subjectId,
+      teacher_ids: teacherIds,
+      room_name: roomName,
+      schedule_date: scheduleDate.toISOString().split('T')[0],
+      start_time: startTime.toTimeString().split(' ')[0],
+      end_time: endTime.toTimeString().split(' ')[0],
+    };
+    onSave(payload);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true}>
+      <View style={styles.modalBackDrop}>
+        <View style={styles.modalContent}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text style={styles.modalTitle}>{editingItem ? 'Chỉnh Sửa Lịch Thi' : 'Tạo Lịch Thi Mới'}</Text>
+          
+          <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+            <Text style={{color: subjectId ? '#000' : '#888'}}>
+              {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
+            </Text>
+          </TouchableOpacity>
+
+          {subjectDropdownVisible && (
+            <View style={styles.dropdownOverlay}>
+              <TextInput 
+                style={styles.dropdownSearch} 
+                placeholder="Tìm môn học..." 
+                value={subjectFilter}
+                onChangeText={setSubjectFilter}
+              />
+              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+                {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
+                  <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
+                    <Text style={{fontSize: 14}}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <TextInput style={styles.input} placeholder="Phòng thi (*)" value={roomName} onChangeText={setRoomName} />
+          
+          {Platform.OS === 'web' ? (
+            <TextInput 
+              style={styles.input} 
+              {...({ type: 'date' } as any)}
+              value={scheduleDate.toISOString().split('T')[0]} 
+              onChangeText={(text) => {
+                const d = new Date(text);
+                if (!isNaN(d.getTime())) setScheduleDate(d);
+              }}
+            />
+          ) : (
+            <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
+              <Text style={{color: '#000'}}>📅 Ngày thi: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {showDatePicker && Platform.OS !== 'web' && (
+            <DateTimePicker
+              value={scheduleDate}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) setScheduleDate(selectedDate);
+              }}
+            />
+          )}
+
+          <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+            {Platform.OS === 'web' ? (
+              <>
+                <TextInput 
+                  style={[styles.input, {flex: 1, marginRight: 5}]} 
+                  {...({ type: 'time' } as any)}
+                  value={startTime.toTimeString().substring(0, 5)}
+                  onChangeText={(text) => {
+                    const [h, m] = text.split(':');
+                    if (h && m) {
+                      const d = new Date(startTime);
+                      d.setHours(parseInt(h), parseInt(m));
+                      setStartTime(d);
+                    }
+                  }}
+                />
+                <TextInput 
+                  style={[styles.input, {flex: 1, marginLeft: 5}]} 
+                  {...({ type: 'time' } as any)}
+                  value={endTime.toTimeString().substring(0, 5)}
+                  onChangeText={(text) => {
+                    const [h, m] = text.split(':');
+                    if (h && m) {
+                      const d = new Date(endTime);
+                      d.setHours(parseInt(h), parseInt(m));
+                      setEndTime(d);
+                    }
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
+                  <Text style={{fontSize: 13, color: '#000'}}>⏰ Từ: {startTime.toTimeString().substring(0, 5)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
+                  <Text style={{fontSize: 13, color: '#000'}}>⏰ Đến: {endTime.toTimeString().substring(0, 5)}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {(showStartTimePicker || showEndTimePicker) && Platform.OS !== 'web' && (
+            <DateTimePicker
+              value={showStartTimePicker ? startTime : endTime}
+              mode="time"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowStartTimePicker(false);
+                setShowEndTimePicker(false);
+                if (selectedDate) showStartTimePicker ? setStartTime(selectedDate) : setEndTime(selectedDate);
+              }}
+            />
+          )}
+
+          <TouchableOpacity style={styles.inputPicker} onPress={() => setTeacherDropdownVisible(!teacherDropdownVisible)}>
+            <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
+              {teacherIds.length > 0 
+                ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
+                : 'Giám thị (Tùy chọn)'}
+            </Text>
+          </TouchableOpacity>
+
+          {teacherDropdownVisible && (
+            <View style={styles.dropdownOverlay}>
+              <TextInput 
+                style={styles.dropdownSearch} 
+                placeholder="Tìm giám thị..." 
+                value={teacherFilter}
+                onChangeText={setTeacherFilter}
+              />
+              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+                {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
+                  <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
+                    <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
+                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 16}}>
+            <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={onClose}>
+              <Text style={styles.btnText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleLocalSave}>
+              <Text style={styles.btnText}>Lưu Lại</Text>
+            </TouchableOpacity>
+          </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function AdminExamsScreen() {
   const { user } = useAuth();
   if (!user) return null;
@@ -26,35 +272,13 @@ export default function AdminExamsScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Form states
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingId, setEditingId] = useState<number | string | null>(null);
-  const [subjectId, setSubjectId] = useState('');
-  const [teacherIds, setTeacherIds] = useState<string[]>([]);
-
-  const toggleTeacher = (id: string) => {
-    setTeacherIds(prev => 
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
-  };
-  
-  const [roomName, setRoomName] = useState('');
-  const [scheduleDate, setScheduleDate] = useState(new Date());
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
-
-  // Picker visibility
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-
-  // Dropdown states
+  // Dropdown data
   const [subjectsList, setSubjectsList] = useState([]);
   const [teachersList, setTeachersList] = useState([]);
-  const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
-  const [teacherDropdownVisible, setTeacherDropdownVisible] = useState(false);
-  const [subjectFilter, setSubjectFilter] = useState('');
-  const [teacherFilter, setTeacherFilter] = useState('');
+
+  // Modal Control
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<ExamItem | null>(null);
 
   useEffect(() => {
     fetchExams();
@@ -90,62 +314,19 @@ export default function AdminExamsScreen() {
   };
 
   const openAddModal = () => {
-    setEditingId(null);
-    setSubjectId('');
-    setTeacherIds([]);
-    setRoomName('');
-    setScheduleDate(new Date());
-    setStartTime(new Date());
-    setEndTime(new Date());
-    setSubjectDropdownVisible(false);
-    setTeacherDropdownVisible(false);
-    setSubjectFilter('');
-    setTeacherFilter('');
+    setEditingItem(null);
     setModalVisible(true);
   };
 
   const openEditModal = (exam: ExamItem) => {
-    setEditingId(exam.id);
-    setSubjectId(String(exam.subject_id));
-    setTeacherIds(exam.teacher_ids ? exam.teacher_ids.split(',').filter(d => d) : []);
-    setRoomName(exam.room_name);
-    setScheduleDate(new Date(exam.schedule_date));
-    
-    // Parse time strings (format HH:mm:ss)
-    const stParts = exam.start_time.split(':');
-    const etParts = exam.end_time.split(':');
-    const st = new Date(); st.setHours(parseInt(stParts[0]), parseInt(stParts[1]), 0);
-    const et = new Date(); et.setHours(parseInt(etParts[0]), parseInt(etParts[1]), 0);
-    setStartTime(st);
-    setEndTime(et);
-    
-    setSubjectFilter('');
-    setTeacherFilter('');
+    setEditingItem(exam);
     setModalVisible(true);
   };
 
-  const handleSave = async () => {
-    if (!subjectId || !roomName) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin bắt buộc.');
-      return;
-    }
-
+  const handleSave = async (payload: any) => {
     try {
-      const dateStr = scheduleDate.toISOString().split('T')[0];
-      const startTimeStr = startTime.toTimeString().split(' ')[0];
-      const endTimeStr = endTime.toTimeString().split(' ')[0];
-
-      const payload = {
-        subject_id: subjectId,
-        teacher_ids: teacherIds,
-        room_name: roomName,
-        schedule_date: dateStr,
-        start_time: startTimeStr,
-        end_time: endTimeStr,
-      };
-
-      if (editingId) {
-        await axios.put(`${API_URL}/admin/exams/${editingId}`, payload);
+      if (editingItem) {
+        await axios.put(`${API_URL}/admin/exams/${editingItem.id}`, payload);
         Alert.alert('Thành công', 'Đã cập nhật lịch thi.');
       } else {
         await axios.post(`${API_URL}/admin/exams`, payload);
@@ -178,27 +359,6 @@ export default function AdminExamsScreen() {
       },
     ]);
   };
-
-  const renderItem = ({ item }: { item: ExamItem }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.subject_name}</Text>
-        <Text style={styles.typeBadge}>LỊCH THI</Text>
-      </View>
-      <Text style={styles.cardDesc}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
-      <Text style={styles.cardDesc}>Thời gian: {item.start_time} - {item.end_time}</Text>
-      <Text style={styles.cardDesc}>Phòng thi: {item.room_name}</Text>
-      <Text style={styles.cardDesc}>Giám thị: {item.teacher_email || 'Chờ phân công'}</Text>
-      <View style={styles.actRow}>
-        <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
-          <Text style={styles.editBtnText}>Sửa</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-          <Text style={styles.deleteBtnText}>Xóa</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   const filteredExams = exams.filter(item => 
     item.subject_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -235,187 +395,27 @@ export default function AdminExamsScreen() {
             <FlatList
               data={filteredExams}
               keyExtractor={(item) => item.id.toString()}
-              renderItem={renderItem}
+              renderItem={({ item }) => (
+                <ExamItemCard item={item} onEdit={openEditModal} onDelete={handleDelete} />
+              )}
               contentContainerStyle={{ padding: 16 }}
             />
           )}
         </>
       )}
 
-      {/* Modal Cập Nhật / Thêm Mới */}
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalBackDrop}>
-          <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>{editingId ? 'Chỉnh Sửa Lịch Thi' : 'Tạo Lịch Thi Mới'}</Text>
-            
-            {/* Dropdown Môn Học */}
-            <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
-              <Text style={{color: subjectId ? '#000' : '#888'}}>
-                {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
-              </Text>
-            </TouchableOpacity>
+      <ExamModal 
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSave={handleSave}
+        editingItem={editingItem}
+        subjectsList={subjectsList}
+        teachersList={teachersList}
+      />
 
-            {subjectDropdownVisible && (
-              <View style={styles.dropdownOverlay}>
-                <TextInput 
-                  style={styles.dropdownSearch} 
-                  placeholder="Tìm môn học..." 
-                  value={subjectFilter}
-                  onChangeText={setSubjectFilter}
-                />
-                <ScrollView 
-                  nestedScrollEnabled 
-                  style={{maxHeight: 150}}
-                >
-                  {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
-                    <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
-                      <Text style={{fontSize: 14}}>{item.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <TextInput style={styles.input} placeholder="Phòng thi (*)" value={roomName} onChangeText={setRoomName} />
-            
-            {/* Date Pickers */}
-            {Platform.OS === 'web' ? (
-              <TextInput 
-                style={styles.input} 
-                {...({ type: 'date' } as any)}
-                value={scheduleDate.toISOString().split('T')[0]} 
-                onChangeText={(text) => {
-                  const d = new Date(text);
-                  if (!isNaN(d.getTime())) setScheduleDate(d);
-                }}
-              />
-            ) : (
-              <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
-                <Text style={{color: '#000'}}>📅 Ngày thi: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
-              </TouchableOpacity>
-            )}
-
-            {showDatePicker && Platform.OS !== 'web' && (
-              <DateTimePicker
-                value={scheduleDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setScheduleDate(selectedDate);
-                }}
-              />
-            )}
-
-            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-              {Platform.OS === 'web' ? (
-                <>
-                  <TextInput 
-                    style={[styles.input, {flex: 1, marginRight: 5}]} 
-                    {...({ type: 'time' } as any)}
-                    value={startTime.toTimeString().substring(0, 5)}
-                    onChangeText={(text) => {
-                      const [h, m] = text.split(':');
-                      if (h && m) {
-                        const d = new Date(startTime);
-                        d.setHours(parseInt(h), parseInt(m));
-                        setStartTime(d);
-                      }
-                    }}
-                  />
-                  <TextInput 
-                    style={[styles.input, {flex: 1, marginLeft: 5}]} 
-                    {...({ type: 'time' } as any)}
-                    value={endTime.toTimeString().substring(0, 5)}
-                    onChangeText={(text) => {
-                      const [h, m] = text.split(':');
-                      if (h && m) {
-                        const d = new Date(endTime);
-                        d.setHours(parseInt(h), parseInt(m));
-                        setEndTime(d);
-                      }
-                    }}
-                  />
-                </>
-              ) : (
-                <>
-                  <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
-                    <Text style={{fontSize: 13, color: '#000'}}>⏰ Bắt đầu: {startTime.toTimeString().substring(0, 5)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
-                    <Text style={{fontSize: 13, color: '#000'}}>⏰ Kết thúc: {endTime.toTimeString().substring(0, 5)}</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-
-            {showStartTimePicker && Platform.OS !== 'web' && (
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowStartTimePicker(false);
-                  if (selectedDate) setStartTime(selectedDate);
-                }}
-              />
-            )}
-            {showEndTimePicker && Platform.OS !== 'web' && (
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowEndTimePicker(false);
-                  if (selectedDate) setEndTime(selectedDate);
-                }}
-              />
-            )}
-
-            {/* Dropdown Giám Thị */}
-            <TouchableOpacity style={styles.inputPicker} onPress={() => setTeacherDropdownVisible(!teacherDropdownVisible)}>
-              <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
-                {teacherIds.length > 0 
-                  ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
-                  : 'Chọn Giám thị (Tùy chọn)'}
-              </Text>
-            </TouchableOpacity>
-
-            {teacherDropdownVisible && (
-              <View style={styles.dropdownOverlay}>
-                <TextInput 
-                  style={styles.dropdownSearch} 
-                  placeholder="Tìm giám thị..." 
-                  value={teacherFilter}
-                  onChangeText={setTeacherFilter}
-                />
-                <ScrollView 
-                  nestedScrollEnabled 
-                  style={{maxHeight: 150}}
-                >
-                  {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
-                    <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
-                      <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
-                      {teacherIds.includes(item.id.toString()) && <Text style={{color: '#D32F2F', fontWeight: 'bold'}}>✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 16}}>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setModalVisible(false)}>
-                <Text style={styles.btnText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleSave}>
-                <Text style={styles.btnText}>Lưu Lại</Text>
-              </TouchableOpacity>
-            </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <TouchableOpacity style={styles.fab} onPress={openAddModal}>
+        <IconSymbol name="plus" size={30} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -475,5 +475,21 @@ const styles = StyleSheet.create({
   dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
   searchContainer: { padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
   searchInput: { backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 10, fontSize: 14 },
-  dropdownSearch: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
+  dropdownSearch: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 },
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 25,
+    backgroundColor: '#D32F2F',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
 });
