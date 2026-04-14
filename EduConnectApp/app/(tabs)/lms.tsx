@@ -89,10 +89,26 @@ export default function LMSScreen() {
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     fetchSchedules();
     if (user.role === 'teacher') fetchSubjects();
   }, [user]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+        if (viewMode === 'study' || viewMode === 'exam') await fetchSchedules();
+        else if (viewMode === 'grades') await fetchGrades(true);
+        else if (viewMode === 'documents') await fetchDocuments(true);
+        else if (viewMode === 'attendance') await fetchAttendances(true);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setRefreshing(false);
+    }
+  };
 
   const fetchSubjects = async () => {
     try {
@@ -103,7 +119,7 @@ export default function LMSScreen() {
 
   const fetchSchedules = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       const url = user.role === 'teacher' 
         ? `${API_URL}/attendance/schedules?teacher_id=${user.id}`
         : `${API_URL}/student/schedules?student_id=${user.id}`;
@@ -116,9 +132,9 @@ export default function LMSScreen() {
     }
   };
 
-  const fetchGrades = async () => {
+  const fetchGrades = async (isRefresh = false) => {
     try {
-      setLoadingGrades(true);
+      if (!isRefresh) setLoadingGrades(true);
       const res = await axios.get(`${API_URL}/student/grades?student_id=${user.id}`);
       if (res.data.success) setGrades(res.data.data);
     } catch (err) {
@@ -128,9 +144,9 @@ export default function LMSScreen() {
     }
   };
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (isRefresh = false) => {
     try {
-      setLoadingDocs(true);
+      if (!isRefresh) setLoadingDocs(true);
       const url = user.role === 'teacher' 
         ? `${API_URL}/admin/documents` 
         : `${API_URL}/student/documents?student_id=${user.id}`;
@@ -149,9 +165,9 @@ export default function LMSScreen() {
     }
   };
 
-  const fetchAttendances = async () => {
+  const fetchAttendances = async (isRefresh = false) => {
     try {
-      setLoadingAttendances(true);
+      if (!isRefresh) setLoadingAttendances(true);
       const res = await axios.get(`${API_URL}/student/attendances?student_id=${user.id}`);
       if (res.data.success) setAttendances(res.data.data);
     } catch (err) {
@@ -408,13 +424,43 @@ export default function LMSScreen() {
         )}
 
         {viewMode === 'study' ? (
-          <FlatList data={studySchedules} keyExtractor={s => s.id.toString()} renderItem={renderItem} contentContainerStyle={{padding: 16}} />
+          <FlatList 
+            data={studySchedules} 
+            keyExtractor={s => s.id.toString()} 
+            renderItem={renderItem} 
+            contentContainerStyle={{padding: 16}}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch học.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+          />
         ) : viewMode === 'exam' ? (
-          <FlatList data={examSchedules} keyExtractor={s => s.id.toString()} renderItem={renderItem} contentContainerStyle={{padding: 16}} />
+          <FlatList 
+            data={examSchedules} 
+            keyExtractor={s => s.id.toString()} 
+            renderItem={renderItem} 
+            contentContainerStyle={{padding: 16}}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch thi.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+          />
         ) : viewMode === 'documents' ? (
-          <FlatList data={documents} keyExtractor={d => d.id.toString()} renderItem={renderDocItem} contentContainerStyle={{padding: 16}} />
+          <FlatList 
+            data={documents} 
+            keyExtractor={d => d.id.toString()} 
+            renderItem={renderDocItem} 
+            contentContainerStyle={{padding: 16}}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loadingDocs ? <Text style={styles.emptyText}>Chưa có tài liệu.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+          />
         ) : viewMode === 'attendance' ? (
-          <FlatList data={attendances} keyExtractor={a => a.id.toString()} renderItem={({item}) => (
+          <FlatList 
+            data={attendances} 
+            keyExtractor={a => a.id.toString()} 
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loadingAttendances ? <Text style={styles.emptyText}>Chưa có lịch sử điểm danh.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+            renderItem={({item}) => (
             <View style={styles.attendanceCard}>
                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                   <Text style={styles.subjName}>{item.subject_name}</Text>
@@ -428,7 +474,13 @@ export default function LMSScreen() {
             </View>
           )} contentContainerStyle={{padding: 16}} />
         ) : (
-          <FlatList data={grades} keyExtractor={g => g.id.toString()} renderItem={({item}) => (
+          <FlatList 
+            data={grades} 
+            keyExtractor={g => g.id.toString()} 
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loadingGrades ? <Text style={styles.emptyText}>Chưa có điểm số.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+            renderItem={({item}) => (
             <View style={styles.gradeCard}>
               <Text style={styles.gradeSubject}>{item.subject_name}</Text>
               <View style={styles.gradeGrid}>
@@ -641,5 +693,6 @@ const styles = StyleSheet.create({
   inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
   dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
   dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  dropdownSearchInside: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 }
+  dropdownSearchInside: { backgroundColor: '#F9F9F9', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 },
+  emptyText: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 13 }
 });

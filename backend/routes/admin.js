@@ -307,23 +307,7 @@ router.delete('/classes/:id', async (req, res) => {
     }
 });
 
-/**
- * Gửi thông báo toàn trường
- */
-router.post('/notifications/broadcast', async (req, res) => {
-    const { title, message } = req.body;
-    try {
-        // Lấy tất cả user ID
-        const [users] = await db.query('SELECT id FROM users');
-        const insertPromises = users.map(u => 
-            db.query('INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)', [u.id, title, message])
-        );
-        await Promise.all(insertPromises);
-        res.json({ success: true, message: 'Đã gửi thông báo đến toàn bộ người dùng.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi gửi thông báo.' });
-    }
-});
+
 
 /**
  * Quản lý bài viết (Posts)

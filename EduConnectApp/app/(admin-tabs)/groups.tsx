@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, Platform, ScrollView, KeyboardAvoidingView } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -237,23 +237,24 @@ export default function AdminGroupsScreen() {
 
          {/* Modal Add/Edit Group */}
          <Modal visible={modalVisible} animationType="slide" transparent={true}>
-            <View style={styles.modalBackDrop}>
-               <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Hội Nhóm' : 'Tạo Hội Nhóm'}</Text>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackDrop}>
+               <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+                  <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                     <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Hội Nhóm' : 'Tạo Hội Nhóm'}</Text>
 
                   {!viewMembers ? (
                      <>
                         <TextInput style={styles.input} placeholder="Tên nhóm / cộng đồng... (Vd: Câu lạc bộ IT)" value={name} onChangeText={setName} />
 
                         <Text style={{ fontSize: 13, color: '#666', marginBottom: 6, marginTop: 10, alignSelf: 'flex-start' }}>Phân Loại Nhóm:</Text>
-                        <View style={{ flexDirection: 'row', marginBottom: 20, justifyContent: 'space-around', width: '100%' }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15, width: '100%', gap: 8 }}>
                            {[
                               { key: 'custom_group', label: 'CHUNG / TỰ DO' },
                               { key: 'class_group', label: 'LỚP HỌC' },
                               { key: 'cohort_group', label: 'KHÓA HỌC' }
                            ].map((item) => (
                               <TouchableOpacity key={item.key}
-                                 style={[styles.typeBtn, groupType === item.key && styles.typeBtnActive]}
+                                 style={[styles.typeBtn, groupType === item.key && styles.typeBtnActive, { marginBottom: 5 }]}
                                  onPress={() => setGroupType(item.key)}>
                                  <Text style={[styles.typeBtnText, groupType === item.key && styles.typeBtnTextActive]}>{item.label}</Text>
                               </TouchableOpacity>
@@ -366,8 +367,9 @@ export default function AdminGroupsScreen() {
                         )}
                      </>
                   )}
+                  </ScrollView>
                </View>
-            </View>
+            </KeyboardAvoidingView>
          </Modal>
       </View>
    );

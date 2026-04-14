@@ -34,6 +34,8 @@ const MAPPING = {
   'plus': 'add',
   'calendar': 'event',
   'chevron.left': 'chevron-left',
+  'hand.thumbsup.fill': 'thumb-up',
+  'bubble.left.fill': 'chat',
 } as IconMapping;
 
 /**

@@ -10,21 +10,29 @@ export default function NotificationsScreen() {
   if (!user) return null;
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchNotifs();
   }, []);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = async (isRefreshing = false) => {
     try {
-      setLoading(true);
+      if (isRefreshing) setRefreshing(true);
+      else setLoading(true);
+
       const res = await axios.get(`${API_URL}/student/notifications?user_id=${user.id}`);
       if (res.data.success) setNotifs(res.data.data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    fetchNotifs(true);
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -42,21 +50,22 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      {loading ? (
+      {loading && notifs.length === 0 ? (
         <ActivityIndicator size="large" color="#B71C1C" style={{ marginTop: 20 }} />
-      ) : notifs.length === 0 ? (
-        <View style={styles.empty}>
-           <IconSymbol name="bell.slash.fill" size={60} color="#DDD" />
-           <Text style={styles.emptyText}>Bạn chưa có thông báo nào.</Text>
-        </View>
       ) : (
         <FlatList
           data={notifs}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16 }}
-          onRefresh={fetchNotifs}
-          refreshing={loading}
+          contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <IconSymbol name="bell.slash.fill" size={60} color="#DDD" />
+              <Text style={styles.emptyText}>Bạn chưa có thông báo nào.</Text>
+            </View>
+          }
         />
       )}
     </View>

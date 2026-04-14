@@ -55,10 +55,19 @@ export default function FeedScreen() {
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     fetchGroups();
     fetchPosts();
   }, [selectedFilterGroup]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchGroups();
+    await fetchPosts();
+    setRefreshing(false);
+  };
 
   const fetchGroups = async () => {
     try {
@@ -69,7 +78,7 @@ export default function FeedScreen() {
 
   const fetchPosts = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       let url = `${API_URL}/student/posts`;
       if (selectedFilterGroup) url += `?group_id=${selectedFilterGroup}`;
       const res = await axios.get(url);
@@ -230,18 +239,20 @@ export default function FeedScreen() {
             )}
             <View style={styles.cardFooter}>
                <TouchableOpacity style={styles.footerAction} onPress={() => handleLike(item.id)}>
-                  <Text style={styles.footerText}>👍 {item.likes_count} Thích</Text>
+                  <IconSymbol name="hand.thumbsup.fill" size={18} color="#666" />
+                  <Text style={styles.footerText}>{item.likes_count} Thích</Text>
                </TouchableOpacity>
                <TouchableOpacity style={styles.footerAction} onPress={() => openComments(item)}>
-                  <Text style={styles.footerText}>💬 {item.comments_count} Bình luận</Text>
+                  <IconSymbol name="bubble.left.fill" size={18} color="#666" />
+                  <Text style={styles.footerText}>{item.comments_count} Bình luận</Text>
                </TouchableOpacity>
             </View>
           </View>
         )}
         contentContainerStyle={{ padding: 16 }}
-        ListEmptyComponent={loading ? <ActivityIndicator size="large" color="#B71C1C" /> : <Text style={styles.emptyText}>Chưa có bài viết.</Text>}
-        refreshing={loading}
-        onRefresh={fetchPosts}
+        ListEmptyComponent={loading ? <ActivityIndicator size="large" color="#B71C1C" style={{marginTop: 40}} /> : <Text style={styles.emptyText}>Chưa có bài viết.</Text>}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
       />
 
       {/* Modal Create Post */}
@@ -347,7 +358,18 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   posterName: { fontWeight: 'bold', color: '#333' },
   posterEmail: { fontSize: 11, color: '#999' },
-  groupBadge: { backgroundColor: '#E8F5E9', color: '#2E7D32', fontSize: 10, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  groupBadge: { 
+    backgroundColor: '#E8F5E9', 
+    color: '#2E7D32', 
+    fontSize: 10, 
+    fontWeight: 'bold',
+    paddingHorizontal: 8, 
+    paddingVertical: 2, 
+    borderRadius: 12, 
+    alignSelf: 'flex-start',
+    borderWidth: 0.5,
+    borderColor: '#C8E6C9'
+  },
   content: { fontSize: 14, color: '#444', marginBottom: 10 },
   mediaContainer: { marginBottom: 10, borderRadius: 6, overflow: 'hidden' },
   postImage: { width: '100%', height: 200 },
@@ -355,8 +377,8 @@ const styles = StyleSheet.create({
   fileIcon: { fontSize: 20, marginRight: 8 },
   fileName: { flex: 1, fontSize: 12, fontWeight: 'bold' },
   cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10 },
-  footerAction: { marginRight: 20 },
-  footerText: { fontSize: 12, color: '#666' },
+  footerAction: { flexDirection: 'row', alignItems: 'center', marginRight: 20 },
+  footerText: { fontSize: 13, color: '#666', marginLeft: 5 },
   emptyText: { textAlign: 'center', color: '#999', marginTop: 40 },
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FFF', width: '90%', padding: 20, borderRadius: 12 },
