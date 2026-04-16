@@ -36,6 +36,7 @@ const MAPPING = {
   'chevron.left': 'chevron-left',
   'hand.thumbsup.fill': 'thumb-up',
   'bubble.left.fill': 'chat',
+  'line.3.horizontal': 'menu',
 } as IconMapping;
 
 /**

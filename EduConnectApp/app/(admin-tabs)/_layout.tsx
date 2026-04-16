@@ -44,30 +44,6 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="classes"
-        options={{
-          title: 'Lớp Học',
-          headerTitle: 'Danh Sách Lớp & Ngành',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet.indent" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="schedules"
-        options={{
-          title: 'Lịch Học',
-          headerTitle: 'Quản Lý Lịch Học',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="exams"
-        options={{
-          title: 'Lịch Thi',
-          headerTitle: 'Quản Lý Lịch Thi',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name={"calendar.fill" as any} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="groups"
         options={{
           title: 'Hội Nhóm',
@@ -76,19 +52,53 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="more"
+        options={{
+          title: 'Xem Thêm',
+          headerTitle: 'Menu Chức Năng',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
+        }}
+      />
+
+      {/* Hidden Tabs (Href null keeps the route but hides the bottom icon) */}
+      <Tabs.Screen
+        name="classes"
+        options={{
+          href: null,
+          title: 'Lớp Học',
+          headerTitle: 'Danh Sách Lớp & Ngành',
+        }}
+      />
+      <Tabs.Screen
+        name="schedules"
+        options={{
+          href: null,
+          title: 'Lịch Học',
+          headerTitle: 'Quản Lý Lịch Học',
+        }}
+      />
+      <Tabs.Screen
+        name="exams"
+        options={{
+          href: null,
+          title: 'Lịch Thi',
+          headerTitle: 'Quản Lý Lịch Thi',
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
+          href: null,
           title: 'Tin Nhắn',
           headerTitle: 'Trò Chuyện Hệ Thống',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          href: null,
           title: 'Cá Nhân',
           headerTitle: 'Hồ Sơ Admin',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
     </Tabs>
