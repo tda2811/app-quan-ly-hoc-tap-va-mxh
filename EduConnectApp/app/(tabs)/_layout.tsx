@@ -48,14 +48,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Thông báo',
-          headerTitle: 'Thông Báo Của Bạn',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="chat"
         options={{
           title: 'Tin Nhắn',
@@ -64,14 +56,39 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="more"
         options={{
-          title: 'Cá Nhân',
-          headerTitle: 'Hồ Sơ Của Bạn',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          title: 'Xem Thêm',
+          headerTitle: 'Menu Chức Năng',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
         }}
       />
 
+      {/* Hidden Tabs */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+          title: 'Thông báo',
+          headerTitle: 'Thông Báo Của Bạn',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
+          title: 'Cá Nhân',
+          headerTitle: 'Hồ Sơ Của Bạn',
+        }}
+      />
+      <Tabs.Screen
+        name="groups"
+        options={{
+          href: null,
+          title: 'Hội Nhóm',
+          headerTitle: 'Hội Nhóm & Cộng Đồng',
+        }}
+      />
     </Tabs>
   );
 }

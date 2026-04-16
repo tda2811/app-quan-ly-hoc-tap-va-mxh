@@ -101,9 +101,9 @@ const LoginScreen = () => {
         </View>
 
         {/* NÚT QUÊN MẬT KHẨU */}
-        <TouchableOpacity style={styles.forgotPassBtn}>
+        {/* <TouchableOpacity style={styles.forgotPassBtn}>
           <Text style={styles.forgotPassText}>Quên Mật Khẩu?</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* NÚT ĐĂNG NHẬP */}
         <TouchableOpacity
