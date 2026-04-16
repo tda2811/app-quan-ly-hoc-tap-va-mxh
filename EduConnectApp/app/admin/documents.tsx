@@ -239,8 +239,8 @@ const styles = StyleSheet.create({
   deleteBtnText: { color: '#D32F2F', fontWeight: 'bold', fontSize: 13 },
 
   // styles cho Upload
-  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+  fab: { position: 'absolute', bottom: 90, right: 25, backgroundColor: '#D32F2F', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4.65, shadowOffset: { width: 0, height: 4 } },
+  fabText: { color: '#FFF', fontSize: 30, fontWeight: 'bold' },
   label: { fontSize: 13, color: '#555', marginBottom: 4, fontWeight: 'bold' },
   input: { width: '100%', height: 44, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, marginBottom: 12 },
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },

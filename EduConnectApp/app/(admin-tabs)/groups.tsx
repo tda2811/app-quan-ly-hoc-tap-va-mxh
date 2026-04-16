@@ -384,8 +384,8 @@ const styles = StyleSheet.create({
    deleteBtn: { backgroundColor: '#FFEAEA', borderWidth: 1, borderColor: '#D32F2F', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
    deleteBtnText: { color: '#D32F2F', fontSize: 13, fontWeight: 'bold' },
 
-   fab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 80 : 20, right: 20, backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } },
-   fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+   fab: { position: 'absolute', bottom: 90, right: 25, backgroundColor: '#D32F2F', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4.65, shadowOffset: { width: 0, height: 4 } },
+   fabText: { color: '#FFF', fontSize: 30, fontWeight: 'bold' },
 
    modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
    modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, alignItems: 'center' },

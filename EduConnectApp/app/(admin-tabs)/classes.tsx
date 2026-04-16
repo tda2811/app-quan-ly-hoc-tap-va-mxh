@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 17, fontWeight: 'bold', color: '#D32F2F' },
   cardSub: { fontSize: 14, color: '#555', marginTop: 4 },
   fab: {
-    position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 80 : 20,
-    backgroundColor: '#D32F2F', width: 56, height: 56, borderRadius: 28,
-    justifyContent: 'center', alignItems: 'center', elevation: 5,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }
+    position: 'absolute', right: 25, bottom: 90,
+    backgroundColor: '#D32F2F', width: 60, height: 60, borderRadius: 30,
+    justifyContent: 'center', alignItems: 'center', elevation: 8,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4.65, shadowOffset: { width: 0, height: 4 }
   },
-  fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+  fabText: { color: '#FFF', fontSize: 30, fontWeight: 'bold' },
   
   // Modal Styles
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
