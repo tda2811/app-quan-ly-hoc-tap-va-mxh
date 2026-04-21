@@ -102,15 +102,23 @@ export default function GroupsScreen() {
         
         <Text style={styles.memberCount}>👥 {item.member_count} thành viên</Text>
         
-        <TouchableOpacity 
-          style={[styles.joinBtn, item.joined_role ? styles.joinedBtn : null]}
-          onPress={() => handleJoin(item)}
-          disabled={!!item.joined_role}
-        >
-          <Text style={[styles.joinText, item.joined_role ? styles.joinedText : null]}>
-            {item.joined_role ? '✓ Đã tham gia' : 'Tham gia ngay'}
-          </Text>
-        </TouchableOpacity>
+        {item.joined_role ? (
+          <TouchableOpacity 
+            style={[styles.joinBtn, styles.joinedBtn]}
+            onPress={() => {
+               router.push({
+                 pathname: '/group-detail',
+                 params: { id: item.id, name: item.name }
+               });
+            }}
+          >
+            <Text style={styles.joinedText}>✓ Đã tham gia - Vào nhóm</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.infoBadge}>
+            <Text style={styles.lockedText}>🔒 Nhóm kín (Liên hệ Admin/GV để tham gia)</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -231,6 +239,21 @@ const styles = StyleSheet.create({
   },
   joinedText: {
     color: '#2E7D32',
+    fontWeight: 'bold',
+  },
+  infoBadge: {
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EEE',
+    borderStyle: 'dashed',
+  },
+  lockedText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyContainer: {
     marginTop: 100,

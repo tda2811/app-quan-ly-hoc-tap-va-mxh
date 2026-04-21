@@ -239,11 +239,17 @@ export default function FeedScreen() {
             )}
             <View style={styles.cardFooter}>
                <TouchableOpacity style={styles.footerAction} onPress={() => handleLike(item.id)}>
-                  <IconSymbol name="hand.thumbsup.fill" size={18} color="#666" />
-                  <Text style={styles.footerText}>{item.likes_count} Thích</Text>
+                  <IconSymbol 
+                    name={item.likes_count > 0 ? "heart.fill" : "heart"} 
+                    size={20} 
+                    color={item.likes_count > 0 ? "#D32F2F" : "#666"} 
+                  />
+                  <Text style={[styles.footerText, item.likes_count > 0 && {color: '#D32F2F', fontWeight: 'bold'}]}>
+                    {item.likes_count} Thích
+                  </Text>
                </TouchableOpacity>
                <TouchableOpacity style={styles.footerAction} onPress={() => openComments(item)}>
-                  <IconSymbol name="bubble.left.fill" size={18} color="#666" />
+                  <IconSymbol name="bubble.right.fill" size={20} color="#666" />
                   <Text style={styles.footerText}>{item.comments_count} Bình luận</Text>
                </TouchableOpacity>
             </View>

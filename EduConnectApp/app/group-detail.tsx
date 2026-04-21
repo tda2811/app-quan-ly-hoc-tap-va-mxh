@@ -174,10 +174,18 @@ export default function GroupDetailScreen() {
             )}
             <View style={styles.cardFooter}>
                <TouchableOpacity style={styles.footerAction} onPress={() => handleLike(item.id)}>
-                  <Text style={styles.footerText}>👍 {item.likes_count} Thích</Text>
+                  <IconSymbol 
+                    name={item.likes_count > 0 ? "heart.fill" : "heart"} 
+                    size={18} 
+                    color={item.likes_count > 0 ? "#D32F2F" : "#666"} 
+                  />
+                  <Text style={[styles.footerText, item.likes_count > 0 && {color: '#D32F2F', fontWeight: 'bold'}]}>
+                    {item.likes_count} Thích
+                  </Text>
                </TouchableOpacity>
                <TouchableOpacity style={styles.footerAction} onPress={() => openComments(item)}>
-                  <Text style={styles.footerText}>💬 {item.comments_count} Bình luận</Text>
+                  <IconSymbol name="bubble.right.fill" size={18} color="#666" />
+                  <Text style={styles.footerText}>{item.comments_count} Bình luận</Text>
                </TouchableOpacity>
             </View>
           </View>
@@ -260,8 +268,8 @@ const styles = StyleSheet.create({
   fileIcon: { fontSize: 22, marginRight: 10 },
   fileName: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#1976D2' },
   cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10 },
-  footerAction: { marginRight: 25 },
-  footerText: { fontSize: 13, color: '#666' },
+  footerAction: { flexDirection: 'row', alignItems: 'center', marginRight: 25 },
+  footerText: { fontSize: 13, color: '#666', marginLeft: 6 },
   emptyText: { textAlign: 'center', color: '#999', marginTop: 50 },
   fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#1B5E20', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
