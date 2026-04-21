@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, 
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert,
   ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput,
   Keyboard, TouchableWithoutFeedback
 } from 'react-native';
@@ -104,6 +104,7 @@ export default function LMSScreen() {
   const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
   const [scoreInput, setScoreInput] = useState({ att: '', mid: '', final: '' });
   const [semDropdownVisible, setSemDropdownVisible] = useState(false);
+  const [semFilter, setSemFilter] = useState('');
 
   useEffect(() => {
     fetchSchedules();
@@ -116,14 +117,14 @@ export default function LMSScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-        if (viewMode === 'study' || viewMode === 'exam') await fetchSchedules();
-        else if (viewMode === 'grades') await fetchGrades(true);
-        else if (viewMode === 'documents') await fetchDocuments(true);
-        else if (viewMode === 'attendance') await fetchAttendances(true);
+      if (viewMode === 'study' || viewMode === 'exam') await fetchSchedules();
+      else if (viewMode === 'grades') await fetchGrades(true);
+      else if (viewMode === 'documents') await fetchDocuments(true);
+      else if (viewMode === 'attendance') await fetchAttendances(true);
     } catch (e) {
-        console.error(e);
+      console.error(e);
     } finally {
-        setRefreshing(false);
+      setRefreshing(false);
     }
   };
 
@@ -146,30 +147,30 @@ export default function LMSScreen() {
 
   const fetchEnrollments = async () => {
     if (!selectedSubId) {
-        Alert.alert('Thông báo', 'Vui lòng chọn môn học.');
-        return;
+      Alert.alert('Thông báo', 'Vui lòng chọn môn học.');
+      return;
     }
     if (!selectedSemId) {
-        Alert.alert('Thông báo', 'Vui lòng chọn học kỳ.');
-        return;
+      Alert.alert('Thông báo', 'Vui lòng chọn học kỳ.');
+      return;
     }
     try {
       setLoadingEnrollments(true);
       const res = await axios.get(`${API_URL}/admin/enrollments`, {
-          params: {
-              subject_id: selectedSubId,
-              semester_id: selectedSemId
-          }
+        params: {
+          subject_id: selectedSubId,
+          semester_id: selectedSemId
+        }
       });
       if (res.data.success) {
-          setEnrollments(res.data.data);
-          if (res.data.data.length === 0) {
-              Alert.alert('Thông báo', 'Không tìm thấy sinh viên nào đăng ký môn học này trong kỳ này.');
-          }
+        setEnrollments(res.data.data);
+        if (res.data.data.length === 0) {
+          Alert.alert('Thông báo', 'Không tìm thấy sinh viên nào đăng ký môn học này trong kỳ này.');
+        }
       }
-    } catch (e) { 
-        console.error(e);
-        Alert.alert('Lỗi', 'Không thể lấy danh sách sinh viên.'); 
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Lỗi', 'Không thể lấy danh sách sinh viên.');
     }
     finally { setLoadingEnrollments(false); }
   };
@@ -177,7 +178,7 @@ export default function LMSScreen() {
   const fetchSchedules = async () => {
     try {
       if (!refreshing) setLoading(true);
-      const url = user.role === 'teacher' 
+      const url = user.role === 'teacher'
         ? `${API_URL}/attendance/schedules?teacher_id=${user.id}`
         : `${API_URL}/student/schedules?student_id=${user.id}`;
       const res = await axios.get(url);
@@ -231,8 +232,8 @@ export default function LMSScreen() {
   const fetchDocuments = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoadingDocs(true);
-      const url = user.role === 'teacher' 
-        ? `${API_URL}/admin/documents` 
+      const url = user.role === 'teacher'
+        ? `${API_URL}/admin/documents`
         : `${API_URL}/student/documents?student_id=${user.id}`;
       const res = await axios.get(url);
       if (res.data.success) {
@@ -295,36 +296,36 @@ export default function LMSScreen() {
   const handleUpload = async () => {
     Keyboard.dismiss();
     if (!docTitle.trim() || !selectedSubId || !pickedFile) {
-        Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề, chọn môn học và chọn file.');
-        return;
+      Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề, chọn môn học và chọn file.');
+      return;
     }
     try {
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('title', docTitle.trim());
-        formData.append('subject_id', selectedSubId.toString());
-        formData.append('uploader_id', user.id);
-        formData.append('file', {
-            uri: pickedFile.uri,
-            name: pickedFile.name,
-            type: pickedFile.mimeType || 'application/octet-stream',
-        } as any);
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('title', docTitle.trim());
+      formData.append('subject_id', selectedSubId.toString());
+      formData.append('uploader_id', user.id);
+      formData.append('file', {
+        uri: pickedFile.uri,
+        name: pickedFile.name,
+        type: pickedFile.mimeType || 'application/octet-stream',
+      } as any);
 
-        const res = await axios.post(`${API_URL}/admin/documents`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+      const res = await axios.post(`${API_URL}/admin/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-        if (res.data.success) {
-            Alert.alert('Thành công', 'Tải tài liệu lên thành công.');
-            setDocTitle(''); setPickedFile(null); setSelectedSubId(null);
-            setUploadModalVisible(false);
-            fetchDocuments();
-        }
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Tải tài liệu lên thành công.');
+        setDocTitle(''); setPickedFile(null); setSelectedSubId(null);
+        setUploadModalVisible(false);
+        fetchDocuments();
+      }
     } catch (error) {
-         Alert.alert('Lỗi', 'Không thể tải tài liệu lên.');
-     } finally {
-          setUploading(false);
-     }
+      Alert.alert('Lỗi', 'Không thể tải tài liệu lên.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAddSchedule = async () => {
@@ -360,12 +361,14 @@ export default function LMSScreen() {
   const handleDeleteSchedule = (id: number) => {
     Alert.alert('Xác Nhận', 'Bạn có muốn xóa lịch dạy này?', [
       { text: 'Hủy' },
-      { text: 'Xóa', style: 'destructive', onPress: async () => {
+      {
+        text: 'Xóa', style: 'destructive', onPress: async () => {
           try {
             await axios.delete(`${API_URL}/attendance/schedules/${id}?teacher_id=${user.id}`);
             fetchSchedules();
           } catch (e) { Alert.alert('Lỗi', 'Xóa thất bại.'); }
-      }}
+        }
+      }
     ]);
   };
 
@@ -373,22 +376,22 @@ export default function LMSScreen() {
     setIsEditing(true);
     setSelectedEditId(item.id);
     setSelectedSubId(item.subject_id);
-    
+
     if (item.schedule_type === 'exam') {
-        if (item.room_name.startsWith('[Lý Thuyết]')) {
-            setExamSubType('Lý Thuyết');
-            setRoomName(item.room_name.replace('[Lý Thuyết] ', ''));
-        } else if (item.room_name.startsWith('[Tự Luận]')) {
-            setExamSubType('Tự Luận');
-            setRoomName(item.room_name.replace('[Tự Luận] ', ''));
-        } else {
-            setRoomName(item.room_name);
-        }
-    } else {
+      if (item.room_name.startsWith('[Lý Thuyết]')) {
+        setExamSubType('Lý Thuyết');
+        setRoomName(item.room_name.replace('[Lý Thuyết] ', ''));
+      } else if (item.room_name.startsWith('[Tự Luận]')) {
+        setExamSubType('Tự Luận');
+        setRoomName(item.room_name.replace('[Tự Luận] ', ''));
+      } else {
         setRoomName(item.room_name);
+      }
+    } else {
+      setRoomName(item.room_name);
     }
     setSchDate(new Date(item.schedule_date));
-    
+
     const [stH, stM] = item.start_time.split(':');
     const startD = new Date(); startD.setHours(parseInt(stH), parseInt(stM));
     setSTime(startD);
@@ -418,13 +421,13 @@ export default function LMSScreen() {
   const handleViewFile = async (fileUrl: string) => {
     try {
       if (!fileUrl) {
-          Alert.alert('Lỗi', 'Đường dẫn file không tồn tại.');
-          return;
+        Alert.alert('Lỗi', 'Đường dẫn file không tồn tại.');
+        return;
       }
       const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${API_URL.replace('/api', '')}${fileUrl}`;
       await WebBrowser.openBrowserAsync(fullUrl);
     } catch (error) {
-       Alert.alert('Lỗi', 'Không thể mở file.');
+      Alert.alert('Lỗi', 'Không thể mở file.');
     }
   };
 
@@ -443,50 +446,50 @@ export default function LMSScreen() {
         Alert.alert('Thành công', 'Điểm danh thành công!');
       }
     } catch (error: any) {
-        Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra.');
+      Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra.');
     }
   };
 
   const renderItem = ({ item }: { item: Schedule }) => (
-    <TouchableOpacity 
-      style={styles.card} 
+    <TouchableOpacity
+      style={styles.card}
       onPress={() => user.role === 'teacher' && setSelectedSchedule(item)}
       onLongPress={() => user.role === 'teacher' && openEditModal(item)}
     >
       <View style={styles.cardHeader}>
-         <Text style={styles.subjName}>{item.subject_name}</Text>
-         <TouchableOpacity 
-           onPress={() => user.role === 'teacher' && handleDeleteSchedule(item.id)}
-           style={{padding: 4}}
-         >
-           {user.role === 'teacher' && <Text style={{color: '#999', fontSize: 10}}>Xóa</Text>}
-         </TouchableOpacity>
-         <Text style={[styles.roomBadge, item.schedule_type === 'exam' && { backgroundColor: '#FFEBEE', color: '#D32F2F' }]}>
-            {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
-         </Text>
+        <Text style={styles.subjName}>{item.subject_name}</Text>
+        <TouchableOpacity
+          onPress={() => user.role === 'teacher' && handleDeleteSchedule(item.id)}
+          style={{ padding: 4 }}
+        >
+          {user.role === 'teacher' && <Text style={{ color: '#999', fontSize: 10 }}>Xóa</Text>}
+        </TouchableOpacity>
+        <Text style={[styles.roomBadge, item.schedule_type === 'exam' && { backgroundColor: '#FFEBEE', color: '#D32F2F' }]}>
+          {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
+        </Text>
       </View>
       <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
       <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
       {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 {item.teacher_email}</Text>}
-      {user.role === 'teacher' && <Text style={{fontSize: 10, color: '#1B5E20', marginTop: 4, fontStyle: 'italic'}}>Nhấn giữ để sửa</Text>}
+      {user.role === 'teacher' && <Text style={{ fontSize: 10, color: '#1B5E20', marginTop: 4, fontStyle: 'italic' }}>Nhấn giữ để sửa</Text>}
     </TouchableOpacity>
   );
 
   const renderDocItem = ({ item }: { item: DocumentItem }) => (
     <View style={styles.docCard}>
-       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-          <Text style={styles.docTitle}>📄 {item.title}</Text>
-          <Text style={styles.docTypeBadge}>{item.file_type.toUpperCase()}</Text>
-       </View>
-       <Text style={styles.docDesc}>Môn: {item.subject_name}</Text>
-       <TouchableOpacity style={styles.viewDocBtn} onPress={() => handleViewFile(item.file_url)}>
-          <Text style={styles.viewDocText}>📄 Xem / Tải Xuống Tài Liệu</Text>
-       </TouchableOpacity>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.docTitle}>📄 {item.title}</Text>
+        <Text style={styles.docTypeBadge}>{item.file_type.toUpperCase()}</Text>
+      </View>
+      <Text style={styles.docDesc}>Môn: {item.subject_name}</Text>
+      <TouchableOpacity style={styles.viewDocBtn} onPress={() => handleViewFile(item.file_url)}>
+        <Text style={styles.viewDocText}>📄 Xem / Tải Xuống Tài Liệu</Text>
+      </TouchableOpacity>
     </View>
   );
 
-  const filteredSchedules = schedules.filter(s => 
-    s.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredSchedules = schedules.filter(s =>
+    s.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.schedule_date.includes(searchQuery)
   );
   const studySchedules = filteredSchedules.filter(s => s.schedule_type !== 'exam');
@@ -496,58 +499,58 @@ export default function LMSScreen() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
-        
+
         <View style={styles.tabContainer}>
-           <ScrollView 
-             horizontal 
-             showsHorizontalScrollIndicator={false} 
-             contentContainerStyle={styles.tabBarScroll}
-           >
-              <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
-                  <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabBarScroll}
+          >
+            <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
+              <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
+              <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
+              <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+            </TouchableOpacity>
+            {user.role === 'student' && (
+              <>
+                <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
+                  <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
+                  <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {user.role === 'teacher' && (
+              <TouchableOpacity style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]} onPress={() => { setViewMode('manage_grades'); }}>
+                <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
-                  <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
-                  <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
-              </TouchableOpacity>
-              {user.role === 'student' && (
-                  <>
-                    <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
-                      <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
-                      <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
-                    </TouchableOpacity>
-                  </>
-              )}
-              {user.role === 'teacher' && (
-                 <TouchableOpacity style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]} onPress={() => { setViewMode('manage_grades'); }}>
-                   <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
-                 </TouchableOpacity>
-              )}
-           </ScrollView>
+            )}
+          </ScrollView>
         </View>
 
         {user.role === 'student' && viewMode === 'study' && (
-          <TouchableOpacity 
-            style={styles.scanBtn} 
+          <TouchableOpacity
+            style={styles.scanBtn}
             onPress={() => {
               setScanned(false);
               isScanningRef.current = false;
               setShowScanner(true);
             }}
           >
-              <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
+            <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
           </TouchableOpacity>
         )}
 
         {(viewMode === 'study' || viewMode === 'exam') && (
           <View style={styles.searchContainer}>
-            <TextInput 
-              style={styles.searchInput} 
-              placeholder="🔍 Tìm theo môn hoặc ngày (YYYY-MM-DD)..." 
+            <TextInput
+              style={styles.searchInput}
+              placeholder="🔍 Tìm theo môn hoặc ngày (YYYY-MM-DD)..."
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -555,126 +558,140 @@ export default function LMSScreen() {
         )}
 
         {viewMode === 'study' ? (
-          <FlatList 
-            data={studySchedules} 
-            keyExtractor={s => s.id.toString()} 
-            renderItem={renderItem} 
-            contentContainerStyle={{padding: 16}}
+          <FlatList
+            data={studySchedules}
+            keyExtractor={s => s.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch học.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch học.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
           />
         ) : viewMode === 'exam' ? (
-          <FlatList 
-            data={examSchedules} 
-            keyExtractor={s => s.id.toString()} 
-            renderItem={renderItem} 
-            contentContainerStyle={{padding: 16}}
+          <FlatList
+            data={examSchedules}
+            keyExtractor={s => s.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch thi.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch thi.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
           />
         ) : viewMode === 'documents' ? (
-          <FlatList 
-            data={documents} 
-            keyExtractor={d => d.id.toString()} 
-            renderItem={renderDocItem} 
-            contentContainerStyle={{padding: 16}}
+          <FlatList
+            data={documents}
+            keyExtractor={d => d.id.toString()}
+            renderItem={renderDocItem}
+            contentContainerStyle={{ padding: 16 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            ListEmptyComponent={!loadingDocs ? <Text style={styles.emptyText}>Chưa có tài liệu.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
+            ListEmptyComponent={!loadingDocs ? <Text style={styles.emptyText}>Chưa có tài liệu.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
           />
         ) : viewMode === 'attendance' ? (
-          <FlatList 
-            data={attendances} 
-            keyExtractor={a => a.id.toString()} 
+          <FlatList
+            data={attendances}
+            keyExtractor={a => a.id.toString()}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            ListEmptyComponent={!loadingAttendances ? <Text style={styles.emptyText}>Chưa có lịch sử điểm danh.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
-            renderItem={({item}) => (
-            <View style={styles.attendanceCard}>
-               <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+            ListEmptyComponent={!loadingAttendances ? <Text style={styles.emptyText}>Chưa có lịch sử điểm danh.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
+            renderItem={({ item }) => (
+              <View style={styles.attendanceCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={styles.subjName}>{item.subject_name}</Text>
-                  <Text style={[styles.statusBadge, {color: item.status === 'present' ? '#2E7D32' : '#D32F2F'}]}>
+                  <Text style={[styles.statusBadge, { color: item.status === 'present' ? '#2E7D32' : '#D32F2F' }]}>
                     {item.status === 'present' ? '✓ CÓ MẶT' : '✕ VẮNG'}
                   </Text>
-               </View>
-               <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
-               <Text style={styles.cardText}>⏰ Thời gian: {new Date(item.scanned_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}</Text>
-               <Text style={styles.cardText}>📍 IP: {item.network_ip || 'N/A'}</Text>
-            </View>
-          )} contentContainerStyle={{padding: 16}} />
+                </View>
+                <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+                <Text style={styles.cardText}>⏰ Thời gian: {new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                <Text style={styles.cardText}>📍 IP: {item.network_ip || 'N/A'}</Text>
+              </View>
+            )} contentContainerStyle={{ padding: 16 }} />
         ) : viewMode === 'manage_grades' ? (
-          <View style={{flex: 1}}>
-             <View style={{padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE'}}>
-                <Text style={styles.label}>1. Chọn Học Kỳ:</Text>
-                <TouchableOpacity style={styles.inputPicker} onPress={() => setSemDropdownVisible(!semDropdownVisible)}>
-                  <Text>{semesters.find(s => s.id === selectedSemId)?.name || 'Chọn Học Kỳ'}</Text>
-                </TouchableOpacity>
-                {semDropdownVisible && (
-                  <View style={styles.dropdownOverlay}>
-                    {semesters.map(s => (
-                      <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSemId(s.id); setSemDropdownVisible(false); }}>
+          <View style={{ flex: 1 }}>
+            <View style={{ padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' }}>
+              <Text style={styles.label}>1. Chọn Học Kỳ:</Text>
+              <TouchableOpacity style={styles.inputPicker} onPress={() => setSemDropdownVisible(!semDropdownVisible)}>
+                <Text>{semesters.find(s => s.id === selectedSemId)?.name || 'Chọn Học Kỳ'}</Text>
+              </TouchableOpacity>
+              {semDropdownVisible && (
+                <View style={styles.dropdownOverlay}>
+                  <TextInput
+                    style={styles.dropdownSearchInside}
+                    placeholder="Tìm kiếm học kỳ..."
+                    value={semFilter}
+                    onChangeText={setSemFilter}
+                  />
+                  <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                    {semesters.filter(s => s.name.toLowerCase().includes(semFilter.toLowerCase())).map(s => (
+                      <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSemId(s.id); setSemDropdownVisible(false); setSemFilter(''); }}>
                         <Text>{s.name}</Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
+                  </ScrollView>
+                </View>
+              )}
 
-                <Text style={styles.label}>2. Chọn Môn Học:</Text>
-                <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
-                   <Text>{subjectsList.find(s => s.id === selectedSubId)?.name || 'Chọn Môn Học'}</Text>
-                </TouchableOpacity>
-                {subjectDropdownVisible && (
-                  <View style={[styles.dropdownOverlay, {maxHeight: 200}]}>
-                     <ScrollView nestedScrollEnabled>
-                        {subjectsList.map(s => (
-                          <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(s.id); setSubjectDropdownVisible(false); }}>
-                            <Text>{s.name}</Text>
-                          </TouchableOpacity>
-                        ))}
-                     </ScrollView>
-                  </View>
-                )}
+              <Text style={styles.label}>2. Chọn Môn Học:</Text>
+              <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                <Text>{subjectsList.find(s => s.id === selectedSubId)?.name || 'Chọn Môn Học'}</Text>
+              </TouchableOpacity>
+              {subjectDropdownVisible && (
+                <View style={styles.dropdownOverlay}>
+                  <TextInput
+                    style={styles.dropdownSearchInside}
+                    placeholder="Tìm kiếm môn học..."
+                    value={subFilter}
+                    onChangeText={setSubFilter}
+                  />
+                  <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                    {subjectsList.filter(s => s.name.toLowerCase().includes(subFilter.toLowerCase())).map(s => (
+                      <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(s.id); setSubjectDropdownVisible(false); setSubFilter(''); }}>
+                        <Text>{s.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
-                <TouchableOpacity 
-                   style={[styles.scanBtn, {margin: 0, marginTop: 10, backgroundColor: '#B71C1C'}]} 
-                   onPress={fetchEnrollments}
-                   disabled={!selectedSubId || !selectedSemId}
-                >
-                   <Text style={styles.scanBtnText}>LẤY DANH SÁCH SINH VIÊN</Text>
-                </TouchableOpacity>
-             </View>
+              <TouchableOpacity
+                style={[styles.scanBtn, { margin: 0, marginTop: 10, backgroundColor: '#B71C1C' }]}
+                onPress={fetchEnrollments}
+                disabled={!selectedSubId || !selectedSemId}
+              >
+                <Text style={styles.scanBtnText}>LẤY DANH SÁCH SINH VIÊN</Text>
+              </TouchableOpacity>
+            </View>
 
-             <FlatList 
-               data={enrollments}
-               keyExtractor={e => e.enrollment_id.toString()}
-               contentContainerStyle={{padding: 16, paddingBottom: 100}}
-               ListEmptyComponent={!loadingEnrollments ? <Text style={styles.emptyText}>Chưa có danh sách sinh viên.</Text> : <ActivityIndicator color="#B71C1C" />}
-               renderItem={({item}) => (
-                 <TouchableOpacity style={styles.gradeCard} onPress={() => openGradeModal(item)}>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                       <View>
-                          <Text style={{fontWeight: 'bold'}}>{item.full_name}</Text>
-                          <Text style={{fontSize: 10, color: '#1B5E20'}}>✓ Đã điểm danh: {item.present_count || 0} buổi</Text>
-                       </View>
-                       <Text style={{fontSize: 12, color: '#666'}}>{item.student_code}</Text>
+            <FlatList
+              data={enrollments}
+              keyExtractor={e => e.enrollment_id.toString()}
+              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              ListEmptyComponent={!loadingEnrollments ? <Text style={styles.emptyText}>Chưa có danh sách sinh viên.</Text> : <ActivityIndicator color="#B71C1C" />}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.gradeCard} onPress={() => openGradeModal(item)}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <View>
+                      <Text style={{ fontWeight: 'bold' }}>{item.full_name}</Text>
+                      <Text style={{ fontSize: 10, color: '#1B5E20' }}>✓ Đã điểm danh: {item.present_count || 0} buổi</Text>
                     </View>
-                    <View style={styles.scoreRow}>
-                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CC: {item.attendance_score ?? '-'}</Text></View>
-                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>GK: {item.midterm_score ?? '-'}</Text></View>
-                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CK: {item.final_score ?? '-'}</Text></View>
-                      <View style={styles.scoreItem}><Text style={[styles.scoreLabel, {fontWeight: 'bold'}]}>TK: {item.overall_score ?? '-'}</Text></View>
-                      <View style={[styles.scoreItem, {backgroundColor: '#E8F5E9', borderRadius: 4}]}><Text style={[styles.scoreLabel, {fontWeight: 'bold', color: '#2E7D32'}]}>GPA: {item.gpa_score ?? '-'}/4.0 ({item.letter_grade ?? '-'})</Text></View>
-                    </View>
-                 </TouchableOpacity>
-               )}
-             />
+                    <Text style={{ fontSize: 12, color: '#666' }}>{item.student_code}</Text>
+                  </View>
+                  <View style={styles.scoreRow}>
+                    <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CC: {item.attendance_score ?? '-'}</Text></View>
+                    <View style={styles.scoreItem}><Text style={styles.scoreLabel}>GK: {item.midterm_score ?? '-'}</Text></View>
+                    <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CK: {item.final_score ?? '-'}</Text></View>
+                    <View style={styles.scoreItem}><Text style={[styles.scoreLabel, { fontWeight: 'bold' }]}>TK: {item.overall_score ?? '-'}</Text></View>
+                    <View style={[styles.scoreItem, { backgroundColor: '#E8F5E9', borderRadius: 4 }]}><Text style={[styles.scoreLabel, { fontWeight: 'bold', color: '#2E7D32' }]}>GPA: {item.gpa_score ?? '-'}/4.0 ({item.letter_grade ?? '-'})</Text></View>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
           </View>
         ) : (
-          <FlatList 
-            data={grades} 
-            keyExtractor={g => g.id.toString()} 
+          <FlatList
+            data={grades}
+            keyExtractor={g => g.id.toString()}
             refreshing={refreshing}
             onRefresh={onRefresh}
             ListHeaderComponent={() => {
@@ -682,7 +699,7 @@ export default function LMSScreen() {
               const totalCredits = gradedSubjects.reduce((acc, curr) => acc + (curr.credit || 0), 0);
               const weightedGPA = gradedSubjects.reduce((acc, curr) => acc + ((curr.gpa_score || 0) * (curr.credit || 0)), 0);
               const avgGPA = totalCredits > 0 ? (weightedGPA / totalCredits).toFixed(2) : '0.00';
-              
+
               // Tính xếp loại học lực dựa trên GPA hệ 4
               const gpaNum = parseFloat(avgGPA);
               let rank = 'Chưa xếp loại';
@@ -694,107 +711,107 @@ export default function LMSScreen() {
               else if (totalCredits > 0) { rank = 'YẾU'; rankColor = '#F44336'; }
 
               return (
-                <View style={[styles.gradeCard, {backgroundColor: '#FFF', borderLeftWidth: 5, borderLeftColor: '#B71C1C', elevation: 3}]}>
-                   <Text style={{fontWeight: 'bold', color: '#B71C1C', fontSize: 18, marginBottom: 8}}>Hồ Sơ Học Tập Toàn Khóa</Text>
-                   <View style={{height: 1, backgroundColor: '#EEE', marginBottom: 10}} />
-                   
-                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6}}>
-                      <Text style={{fontSize: 14, color: '#555'}}>Tổng số tín chỉ đạt:</Text>
-                      <Text style={{fontWeight: 'bold', fontSize: 14}}>{totalCredits}</Text>
-                   </View>
+                <View style={[styles.gradeCard, { backgroundColor: '#FFF', borderLeftWidth: 5, borderLeftColor: '#B71C1C', elevation: 3 }]}>
+                  <Text style={{ fontWeight: 'bold', color: '#B71C1C', fontSize: 18, marginBottom: 8 }}>Hồ Sơ Học Tập Toàn Khóa</Text>
+                  <View style={{ height: 1, backgroundColor: '#EEE', marginBottom: 10 }} />
 
-                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6}}>
-                      <Text style={{fontSize: 14, color: '#555'}}>Điểm GPA toàn khóa (hệ 4):</Text>
-                      <Text style={{fontWeight: 'bold', fontSize: 16, color: '#B71C1C'}}>{avgGPA} / 4.00</Text>
-                   </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 14, color: '#555' }}>Tổng số tín chỉ đạt:</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14 }}>{totalCredits}</Text>
+                  </View>
 
-                   <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                      <Text style={{fontSize: 14, color: '#555'}}>Xếp loại học lực:</Text>
-                      <Text style={{fontWeight: 'bold', fontSize: 14, color: rankColor}}>{rank}</Text>
-                   </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 14, color: '#555' }}>Điểm GPA toàn khóa (hệ 4):</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#B71C1C' }}>{avgGPA} / 4.00</Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: '#555' }}>Xếp loại học lực:</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: rankColor }}>{rank}</Text>
+                  </View>
                 </View>
               );
             }}
-            ListEmptyComponent={!loadingGrades ? <Text style={styles.emptyText}>Chưa có điểm số.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
-            renderItem={({item}) => (
-            <View style={styles.gradeCard}>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}>
-                 <Text style={[styles.gradeSubject, {flex: 1}]}>{item.subject_name}</Text>
-                 <Text style={{fontSize: 11, color: '#666'}}>{item.semester_name}</Text>
+            ListEmptyComponent={!loadingGrades ? <Text style={styles.emptyText}>Chưa có điểm số.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
+            renderItem={({ item }) => (
+              <View style={styles.gradeCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <Text style={[styles.gradeSubject, { flex: 1 }]}>{item.subject_name}</Text>
+                  <Text style={{ fontSize: 11, color: '#666' }}>{item.semester_name}</Text>
+                </View>
+                <View style={styles.gradeGrid}>
+                  <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Điểm danh</Text><Text style={styles.gradeValue}>{item.attendance_score || '-'}</Text></View>
+                  <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Giữa kỳ</Text><Text style={styles.gradeValue}>{item.midterm_score || '-'}</Text></View>
+                  <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Cuối kỳ</Text><Text style={styles.gradeValue}>{item.final_score || '-'}</Text></View>
+                  <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Tổng kết</Text><Text style={[styles.gradeValue, { color: '#B71C1C' }]}>{item.overall_score || '-'}</Text></View>
+                  <View style={[styles.gradeCol, { backgroundColor: '#F5F5F5', padding: 4, borderRadius: 4 }]}><Text style={styles.gradeLabel}>GPA/Hệ 4</Text><Text style={[styles.gradeValue, { color: '#2E7D32' }]}>{item.gpa_score || '-'}</Text></View>
+                </View>
               </View>
-              <View style={styles.gradeGrid}>
-                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Điểm danh</Text><Text style={styles.gradeValue}>{item.attendance_score || '-'}</Text></View>
-                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Giữa kỳ</Text><Text style={styles.gradeValue}>{item.midterm_score || '-'}</Text></View>
-                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Cuối kỳ</Text><Text style={styles.gradeValue}>{item.final_score || '-'}</Text></View>
-                <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Tổng kết</Text><Text style={[styles.gradeValue, {color: '#B71C1C'}]}>{item.overall_score || '-'}</Text></View>
-                <View style={[styles.gradeCol, {backgroundColor: '#F5F5F5', padding: 4, borderRadius: 4}]}><Text style={styles.gradeLabel}>GPA/Hệ 4</Text><Text style={[styles.gradeValue, {color: '#2E7D32'}]}>{item.gpa_score || '-'}</Text></View>
-              </View>
-            </View>
-          )} contentContainerStyle={{padding: 16}} />
+            )} contentContainerStyle={{ padding: 16 }} />
         )}
 
         <Modal visible={showScanner} animationType="slide">
           <View style={styles.cameraBackdrop}>
-              <CameraView style={styles.cameraView} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} />
-              <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}><Text style={{color: '#FFF'}}>Đóng</Text></TouchableOpacity>
+            <CameraView style={styles.cameraView} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} />
+            <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}><Text style={{ color: '#FFF' }}>Đóng</Text></TouchableOpacity>
           </View>
         </Modal>
 
         {/* QR Code Modal for Teacher */}
         <Modal visible={!!selectedSchedule} animationType="fade" transparent={true}>
-           <View style={styles.modalBackDrop}>
-              <View style={[styles.modalContent, {alignItems: 'center', width: '92%', maxHeight: '85%'}]}>
-                  <Text style={{fontWeight: 'bold', fontSize: 18, color: '#B71C1C', marginBottom: 5}}>{selectedSchedule?.subject_name}</Text>
-                  <Text style={{fontSize: 12, color: '#666', marginBottom: 15}}>Sinh viên quét mã bên dưới để điểm danh</Text>
-                  
-                  {selectedSchedule && (
-                    <View style={{padding: 10, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 15}}>
-                       <Image 
-                         source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedSchedule.id}` }} 
-                         style={{ width: 180, height: 180 }}
-                       />
-                    </View>
-                  )}
+          <View style={styles.modalBackDrop}>
+            <View style={[styles.modalContent, { alignItems: 'center', width: '92%', maxHeight: '85%' }]}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#B71C1C', marginBottom: 5 }}>{selectedSchedule?.subject_name}</Text>
+              <Text style={{ fontSize: 12, color: '#666', marginBottom: 15 }}>Sinh viên quét mã bên dưới để điểm danh</Text>
 
-                  <View style={{width: '100%', flex: 1, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10}}>
-                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
-                        <Text style={{fontWeight: 'bold', fontSize: 14, color: '#333'}}>Thống kê điểm danh ({attendees.length})</Text>
-                        <TouchableOpacity onPress={() => selectedSchedule && fetchAttendees(selectedSchedule.id)}>
-                           <Text style={{color: '#1976D2', fontSize: 12, fontWeight: 'bold'}}>🔄 Tải lại</Text>
-                        </TouchableOpacity>
-                     </View>
+              {selectedSchedule && (
+                <View style={{ padding: 10, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 15 }}>
+                  <Image
+                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedSchedule.id}` }}
+                    style={{ width: 180, height: 180 }}
+                  />
+                </View>
+              )}
 
-                     {loadingAttendees ? (
-                        <ActivityIndicator color="#B71C1C" style={{marginTop: 20}} />
-                     ) : (
-                        <FlatList 
-                           data={attendees}
-                           keyExtractor={(item) => item.id.toString()}
-                           renderItem={({item}) => (
-                              <View style={{flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0'}}>
-                                 <View style={{flex: 1}}>
-                                    <Text style={{fontWeight: 'bold', fontSize: 13}}>{item.full_name}</Text>
-                                    <Text style={{fontSize: 11, color: '#666'}}>{item.email}</Text>
-                                 </View>
-                                 <View style={{alignItems: 'flex-end'}}>
-                                    <Text style={{fontSize: 11, color: '#1B5E20', fontWeight: 'bold'}}>✓ ĐÃ VÀO</Text>
-                                    <Text style={{fontSize: 10, color: '#999'}}>{new Date(item.scanned_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</Text>
-                                 </View>
-                              </View>
-                           )}
-                           ListEmptyComponent={<Text style={{textAlign: 'center', color: '#999', marginTop: 20}}>Chưa có SV nào quét mã</Text>}
-                        />
-                     )}
-                  </View>
-
-                  <TouchableOpacity 
-                    style={[styles.scanBtn, {backgroundColor: '#555', marginTop: 15, width: '100%', marginBottom: 0}]} 
-                    onPress={() => setSelectedSchedule(null)}
-                  >
-                    <Text style={{color: '#FFF', fontWeight: 'bold'}}>ĐÓNG</Text>
+              <View style={{ width: '100%', flex: 1, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>Thống kê điểm danh ({attendees.length})</Text>
+                  <TouchableOpacity onPress={() => selectedSchedule && fetchAttendees(selectedSchedule.id)}>
+                    <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>🔄 Tải lại</Text>
                   </TouchableOpacity>
+                </View>
+
+                {loadingAttendees ? (
+                  <ActivityIndicator color="#B71C1C" style={{ marginTop: 20 }} />
+                ) : (
+                  <FlatList
+                    data={attendees}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{item.full_name}</Text>
+                          <Text style={{ fontSize: 11, color: '#666' }}>{item.email}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>✓ ĐÃ VÀO</Text>
+                          <Text style={{ fontSize: 10, color: '#999' }}>{new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        </View>
+                      </View>
+                    )}
+                    ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#999', marginTop: 20 }}>Chưa có SV nào quét mã</Text>}
+                  />
+                )}
               </View>
-           </View>
+
+              <TouchableOpacity
+                style={[styles.scanBtn, { backgroundColor: '#555', marginTop: 15, width: '100%', marginBottom: 0 }]}
+                onPress={() => setSelectedSchedule(null)}
+              >
+                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>ĐÓNG</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
 
         {/* Add Schedule Modal for Teacher */}
@@ -804,26 +821,26 @@ export default function LMSScreen() {
               <View style={styles.modalContent}>
                 <Text style={styles.label}>Môn Học (*):</Text>
                 <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
-                  <Text style={{color: selectedSubId ? '#000' : '#888'}}>
+                  <Text style={{ color: selectedSubId ? '#000' : '#888' }}>
                     {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
                   </Text>
                 </TouchableOpacity>
 
                 {subjectDropdownVisible && (
                   <View style={styles.dropdownOverlay}>
-                    <TextInput 
-                      style={styles.dropdownSearchInside} 
-                      placeholder="Tìm môn học..." 
+                    <TextInput
+                      style={styles.dropdownSearchInside}
+                      placeholder="Tìm môn học..."
                       value={subFilter}
                       onChangeText={setSubFilter}
                     />
-                    <ScrollView 
-                      nestedScrollEnabled 
-                      style={{maxHeight: 120}}
+                    <ScrollView
+                      nestedScrollEnabled
+                      style={{ maxHeight: 120 }}
                     >
                       {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subFilter.toLowerCase())).map((item: any) => (
                         <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(item.id); setSubjectDropdownVisible(false); }}>
-                          <Text style={{fontSize: 14}}>{item.name}</Text>
+                          <Text style={{ fontSize: 14 }}>{item.name}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -831,15 +848,15 @@ export default function LMSScreen() {
                 )}
 
                 <TextInput style={styles.inputNarrow} placeholder={viewMode === 'exam' ? "Phòng thi (VD: A1.101)" : "Phòng học (VD: A1.101)"} value={roomName} onChangeText={setRoomName} />
-                
+
                 {/* Date Selection */}
                 <Text style={styles.label}>{viewMode === 'exam' ? 'Ngày thi (*):' : 'Ngày giảng dạy (*):'}</Text>
                 {Platform.OS === 'web' ? (
-                  <TextInput 
-                    style={styles.inputNarrow} 
+                  <TextInput
+                    style={styles.inputNarrow}
                     {...({ type: 'date' } as any)}
-                    value={schDate.toISOString().split('T')[0]} 
-                    onChangeText={(v: any) => setSchDate(new Date(v))} 
+                    value={schDate.toISOString().split('T')[0]}
+                    onChangeText={(v: any) => setSchDate(new Date(v))}
                   />
                 ) : (
                   <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowDatePicker(true)}>
@@ -848,62 +865,62 @@ export default function LMSScreen() {
                 )}
 
                 {showDatePicker && Platform.OS !== 'web' && (
-                  <DateTimePicker 
-                    value={schDate} mode="date" display="default" 
-                    onChange={(e, d) => { setShowDatePicker(false); if (d) setSchDate(d); }} 
+                  <DateTimePicker
+                    value={schDate} mode="date" display="default"
+                    onChange={(e, d) => { setShowDatePicker(false); if (d) setSchDate(d); }}
                   />
                 )}
 
-                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                   <View style={{flex: 0.48}}>
-                      <Text style={styles.label}>Bắt đầu:</Text>
-                      {Platform.OS === 'web' ? (
-                        <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={sTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h,m] = v.split(':'); nd.setHours(parseInt(h),parseInt(m)); setSTime(nd); }} />
-                      ) : (
-                        <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
-                          <Text>⏰ {sTime.toTimeString().substring(0, 5)}</Text>
-                        </TouchableOpacity>
-                      )}
-                      {showSTimePicker && Platform.OS !== 'web' && (
-                        <DateTimePicker value={sTime} mode="time" display="default" onChange={(e, d) => { setShowSTimePicker(false); if (d) setSTime(d); }} />
-                      )}
-                   </View>
-                   <View style={{flex: 0.48}}>
-                      <Text style={styles.label}>Kết thúc:</Text>
-                      {Platform.OS === 'web' ? (
-                        <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={eTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h,m] = v.split(':'); nd.setHours(parseInt(h),parseInt(m)); setETime(nd); }} />
-                      ) : (
-                        <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
-                          <Text>⏰ {eTime.toTimeString().substring(0, 5)}</Text>
-                        </TouchableOpacity>
-                      )}
-                      {showETimePicker && Platform.OS !== 'web' && (
-                        <DateTimePicker value={eTime} mode="time" display="default" onChange={(e, d) => { setShowETimePicker(false); if (d) setETime(d); }} />
-                      )}
-                   </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 0.48 }}>
+                    <Text style={styles.label}>Bắt đầu:</Text>
+                    {Platform.OS === 'web' ? (
+                      <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={sTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setSTime(nd); }} />
+                    ) : (
+                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
+                        <Text>⏰ {sTime.toTimeString().substring(0, 5)}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showSTimePicker && Platform.OS !== 'web' && (
+                      <DateTimePicker value={sTime} mode="time" display="default" onChange={(e, d) => { setShowSTimePicker(false); if (d) setSTime(d); }} />
+                    )}
+                  </View>
+                  <View style={{ flex: 0.48 }}>
+                    <Text style={styles.label}>Kết thúc:</Text>
+                    {Platform.OS === 'web' ? (
+                      <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={eTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setETime(nd); }} />
+                    ) : (
+                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
+                        <Text>⏰ {eTime.toTimeString().substring(0, 5)}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showETimePicker && Platform.OS !== 'web' && (
+                      <DateTimePicker value={eTime} mode="time" display="default" onChange={(e, d) => { setShowETimePicker(false); if (d) setETime(d); }} />
+                    )}
+                  </View>
                 </View>
 
-                <View style={{flexDirection: 'row', marginBottom: 20}}>
-                   <TouchableOpacity 
-                     style={[styles.miniBtn, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && styles.miniBtnActive]} 
-                     onPress={() => viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory')}
-                   >
-                      <Text style={[styles.miniBtnText, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && {color:'#FFF'}]}>Lý Thuyết</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity 
-                     style={[styles.miniBtn, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && styles.miniBtnActive]} 
-                     onPress={() => viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice')}
-                   >
-                      <Text style={[styles.miniBtnText, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && {color:'#FFF'}]}>
-                        {viewMode === 'exam' ? 'Tự Luận' : 'Thực Hành'}
-                      </Text>
-                   </TouchableOpacity>
+                <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+                  <TouchableOpacity
+                    style={[styles.miniBtn, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && styles.miniBtnActive]}
+                    onPress={() => viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory')}
+                  >
+                    <Text style={[styles.miniBtnText, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && { color: '#FFF' }]}>Lý Thuyết</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.miniBtn, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && styles.miniBtnActive]}
+                    onPress={() => viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice')}
+                  >
+                    <Text style={[styles.miniBtnText, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && { color: '#FFF' }]}>
+                      {viewMode === 'exam' ? 'Tự Luận' : 'Thực Hành'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                 <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => { setAddModalVisible(false); resetAddModal(); }}><Text style={{color:'#333'}}>Hủy</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1B5E20'}]} onPress={handleAddSchedule}><Text style={{color:'#FFF', fontWeight:'bold'}}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text></TouchableOpacity>
-                 </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => { setAddModalVisible(false); resetAddModal(); }}><Text style={{ color: '#333' }}>Hủy</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B5E20' }]} onPress={handleAddSchedule}><Text style={{ color: '#FFF', fontWeight: 'bold' }}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text></TouchableOpacity>
+                </View>
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -914,22 +931,22 @@ export default function LMSScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.modalBackDrop}>
               <View style={styles.modalContent}>
-                <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 15, textAlign: 'center'}}>NHẬP ĐIỂM SINH VIÊN</Text>
-                <Text style={{marginBottom: 2, color: '#666'}}>Sinh viên: <Text style={{fontWeight: 'bold', color: '#000'}}>{selectedEnrollment?.full_name}</Text></Text>
-                <Text style={{marginBottom: 10, fontSize: 11, color: '#1B5E20'}}>Số buổi đi học thực tế: {selectedEnrollment?.present_count || 0} buổi</Text>
-                
+                <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 15, textAlign: 'center' }}>NHẬP ĐIỂM SINH VIÊN</Text>
+                <Text style={{ marginBottom: 2, color: '#666' }}>Sinh viên: <Text style={{ fontWeight: 'bold', color: '#000' }}>{selectedEnrollment?.full_name}</Text></Text>
+                <Text style={{ marginBottom: 10, fontSize: 11, color: '#1B5E20' }}>Số buổi đi học thực tế: {selectedEnrollment?.present_count || 0} buổi</Text>
+
                 <Text style={styles.label}>Điểm Chuyên cần (10%):</Text>
-                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.att} onChangeText={t => setScoreInput({...scoreInput, att: t})} placeholder="Nhập điểm CC..." />
-                
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.att} onChangeText={t => setScoreInput({ ...scoreInput, att: t })} placeholder="Nhập điểm CC..." />
+
                 <Text style={styles.label}>Điểm Giữa kỳ (30%):</Text>
-                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.mid} onChangeText={t => setScoreInput({...scoreInput, mid: t})} placeholder="Nhập điểm GK..." />
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.mid} onChangeText={t => setScoreInput({ ...scoreInput, mid: t })} placeholder="Nhập điểm GK..." />
 
                 <Text style={styles.label}>Điểm Cuối kỳ (60%):</Text>
-                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.final} onChangeText={t => setScoreInput({...scoreInput, final: t})} placeholder="Nhập điểm CK..." />
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.final} onChangeText={t => setScoreInput({ ...scoreInput, final: t })} placeholder="Nhập điểm CK..." />
 
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20}}>
-                   <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setGradeModalVisible(false)}><Text>Hủy</Text></TouchableOpacity>
-                   <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#B71C1C'}]} onPress={handleUpdateGrade}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Lưu Điểm</Text></TouchableOpacity>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => setGradeModalVisible(false)}><Text>Hủy</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#B71C1C' }]} onPress={handleUpdateGrade}><Text style={{ color: '#FFF', fontWeight: 'bold' }}>Lưu Điểm</Text></TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -937,15 +954,15 @@ export default function LMSScreen() {
         </Modal>
 
         {user.role === 'teacher' && (viewMode === 'study' || viewMode === 'exam') && (
-          <TouchableOpacity 
-            style={styles.fab} 
+          <TouchableOpacity
+            style={styles.fab}
             onPress={() => {
               resetAddModal();
               if (viewMode === 'exam') setSchType('exam' as any);
               setAddModalVisible(true);
             }}
           >
-             <Text style={styles.fabText}>+</Text>
+            <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -958,15 +975,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginVertical: 10 },
   tabContainer: { marginBottom: 8 },
   tabBarScroll: { paddingLeft: 16, paddingRight: 30, flexDirection: 'row', height: 40, alignItems: 'center' },
-  tabItem: { 
-    paddingHorizontal: 12, 
-    height: 32, 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    borderColor: '#EEE', 
-    backgroundColor: '#FFF', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  tabItem: {
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EEE',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 6,
     elevation: 1,
     shadowColor: '#000',
