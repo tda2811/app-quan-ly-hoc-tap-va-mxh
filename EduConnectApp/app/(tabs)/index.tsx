@@ -79,8 +79,8 @@ export default function FeedScreen() {
   const fetchPosts = async () => {
     try {
       if (!refreshing) setLoading(true);
-      let url = `${API_URL}/student/posts`;
-      if (selectedFilterGroup) url += `?group_id=${selectedFilterGroup}`;
+      let url = `${API_URL}/student/posts?user_id=${user.id}`;
+      if (selectedFilterGroup) url += `&group_id=${selectedFilterGroup}`;
       const res = await axios.get(url);
       if (res.data.success) setPosts(res.data.data);
     } catch (err) {

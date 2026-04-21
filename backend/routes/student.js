@@ -29,7 +29,7 @@ const upload = multer({ storage });
  * Danh sách Bài viết cho Feed (Tất cả hoặc theo nhóm)
  */
 router.get('/posts', async (req, res) => {
-    const { group_id } = req.query;
+    const { group_id, user_id } = req.query;
     try {
         let query = `
             SELECT p.*, u.email, s.full_name, g.name as group_name, pm.media_url, pm.media_type
@@ -40,10 +40,21 @@ router.get('/posts', async (req, res) => {
             LEFT JOIN post_media pm ON p.id = pm.post_id
         `;
         let params = [];
+        let whereClauses = [];
+
         if (group_id) {
-            query += ' WHERE p.group_id = ?';
+            whereClauses.push('p.group_id = ?');
             params.push(group_id);
+        } else if (user_id) {
+            // Nếu xem "Tất cả", chỉ hiện bài công khai (NULL) HOẶC bài trong nhóm đã Join
+            whereClauses.push('(p.group_id IS NULL OR p.group_id IN (SELECT group_id FROM group_members WHERE user_id = ?))');
+            params.push(user_id);
         }
+
+        if (whereClauses.length > 0) {
+            query += ' WHERE ' + whereClauses.join(' AND ');
+        }
+
         query += ' ORDER BY p.created_at DESC LIMIT 50';
 
         const [posts] = await db.query(query, params);
