@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+
+// Tự động kiểm tra và thêm cột nếu thiếu cho bảng grades
+db.query("ALTER TABLE grades ADD COLUMN letter_grade VARCHAR(2) DEFAULT NULL").catch(err => {});
+db.query("ALTER TABLE grades ADD COLUMN gpa_score FLOAT DEFAULT NULL").catch(err => {});
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -101,10 +106,10 @@ router.get('/subjects', async (req, res) => {
 router.get('/groups', async (req, res) => {
     try {
         const [groups] = await db.query(`
-            SELECT g.*, COUNT(gm.user_id) as member_count 
-            FROM groups_table g 
-            LEFT JOIN group_members gm ON g.id = gm.group_id 
-            GROUP BY g.id
+            SELECT g.*, 
+            (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) as member_count
+            FROM groups_table g
+            ORDER BY g.created_at DESC
         `);
         res.json({ success: true, data: groups });
     } catch (error) {
@@ -616,10 +621,33 @@ router.put('/majors/:id', async (req, res) => {
 router.get('/enrollments', async (req, res) => {
     const { subject_id, semester_id, class_id } = req.query;
     try {
+        const subId = subject_id && subject_id !== 'null' ? parseInt(subject_id) : null;
+        const semId = semester_id && semester_id !== 'null' ? parseInt(semester_id) : null;
+        const clsId = class_id && class_id !== 'null' ? parseInt(class_id) : null;
+
+        // TỰ ĐỘNG ĐỒNG BỘ: Nếu sinh viên đã điểm danh môn này trong kỳ này, tự động thêm vào danh sách lớp
+        if (subId && semId) {
+            const [[semester]] = await db.query('SELECT * FROM semesters WHERE id = ?', [semId]);
+            if (semester) {
+                await db.query(`
+                    INSERT IGNORE INTO student_enrollments (student_id, subject_id, semester_id, status)
+                    SELECT DISTINCT a.student_id, s.subject_id, ?, 'studying'
+                    FROM attendances a
+                    JOIN schedules s ON a.schedule_id = s.id
+                    WHERE s.subject_id = ? 
+                    AND s.schedule_date BETWEEN ? AND ?
+                `, [semId, subId, semester.start_date, semester.end_date]);
+            }
+        }
+
         let query = `
             SELECT se.id as enrollment_id, s.user_id, s.full_name, s.student_code, 
                    sub.name as subject_name, sem.name as semester_name,
-                   g.attendance_score, g.midterm_score, g.final_score, g.overall_score
+                   g.attendance_score, g.midterm_score, g.final_score, g.overall_score, 
+                   g.letter_grade, g.gpa_score,
+                   (SELECT COUNT(*) FROM attendances a 
+                    JOIN schedules sch ON a.schedule_id = sch.id 
+                    WHERE a.student_id = s.user_id AND sch.subject_id = se.subject_id AND a.status = 'present') as present_count
             FROM student_enrollments se
             JOIN students s ON se.student_id = s.user_id
             JOIN subjects sub ON se.subject_id = sub.id
@@ -628,22 +656,23 @@ router.get('/enrollments', async (req, res) => {
             WHERE 1=1
         `;
         const params = [];
-        if (subject_id) {
+        if (subId) {
             query += ' AND se.subject_id = ?';
-            params.push(subject_id);
+            params.push(subId);
         }
-        if (semester_id) {
+        if (semId) {
             query += ' AND se.semester_id = ?';
-            params.push(semester_id);
+            params.push(semId);
         }
-        if (class_id) {
+        if (clsId) {
             query += ' AND s.class_id = ?';
-            params.push(class_id);
+            params.push(clsId);
         }
 
         const [rows] = await db.query(query, params);
         res.json({ success: true, data: rows });
     } catch (error) {
+        console.error('Enrollment Fetch Error:', error);
         res.status(500).json({ success: false, message: 'Lỗi lấy danh sách đăng ký: ' + error.message });
     }
 });
@@ -655,30 +684,39 @@ router.put('/grades', async (req, res) => {
     if (!enrollment_id) return res.status(400).json({ success: false, message: 'Thiếu enrollment_id' });
 
     try {
-        // Tính điểm tổng kết (giả định: 10% chuyên cần, 30% giữa kỳ, 60% cuối kỳ)
-        let overall = null;
-        if (attendance_score !== null && midterm_score !== null && final_score !== null) {
-            overall = (parseFloat(attendance_score) * 0.1) + 
-                      (parseFloat(midterm_score) * 0.3) + 
-                      (parseFloat(final_score) * 0.6);
-            overall = Math.round(overall * 10) / 10; // Làm tròn 1 chữ số
+        const att = attendance_score !== '' ? parseFloat(attendance_score) : null;
+        const mid = midterm_score !== '' ? parseFloat(midterm_score) : null;
+        const fin = final_score !== '' ? parseFloat(final_score) : null;
+
+        const overall = (att !== null && mid !== null && fin !== null)
+            ? Math.round((att * 0.1 + mid * 0.3 + fin * 0.6) * 10) / 10
+            : null;
+
+        let letterGrade = null;
+        let gpaScore = null;
+        if (overall !== null) {
+            if (overall >= 8.5) { letterGrade = 'A'; gpaScore = 4.0; }
+            else if (overall >= 8.0) { letterGrade = 'B+'; gpaScore = 3.5; }
+            else if (overall >= 7.0) { letterGrade = 'B'; gpaScore = 3.0; }
+            else if (overall >= 6.5) { letterGrade = 'C+'; gpaScore = 2.5; }
+            else if (overall >= 5.5) { letterGrade = 'C'; gpaScore = 2.0; }
+            else if (overall >= 5.0) { letterGrade = 'D+'; gpaScore = 1.5; }
+            else if (overall >= 4.0) { letterGrade = 'D'; gpaScore = 1.0; }
+            else { letterGrade = 'F'; gpaScore = 0.0; }
         }
 
-        // Kiểm tra xem đã có bản ghi điểm chưa
-        const [exists] = await db.query('SELECT id FROM grades WHERE enrollment_id = ?', [enrollment_id]);
-
-        if (exists.length > 0) {
-            await db.query(`
-                UPDATE grades 
-                SET attendance_score = ?, midterm_score = ?, final_score = ?, overall_score = ?
-                WHERE enrollment_id = ?
-            `, [attendance_score, midterm_score, final_score, overall, enrollment_id]);
-        } else {
-            await db.query(`
-                INSERT INTO grades (enrollment_id, attendance_score, midterm_score, final_score, overall_score)
-                VALUES (?, ?, ?, ?, ?)
-            `, [enrollment_id, attendance_score, midterm_score, final_score, overall]);
-        }
+        // Upsert grade
+        await db.query(`
+            INSERT INTO grades (enrollment_id, attendance_score, midterm_score, final_score, overall_score, letter_grade, gpa_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                attendance_score = VALUES(attendance_score),
+                midterm_score = VALUES(midterm_score),
+                final_score = VALUES(final_score),
+                overall_score = VALUES(overall_score),
+                letter_grade = VALUES(letter_grade),
+                gpa_score = VALUES(gpa_score)
+        `, [enrollment_id, att, mid, fin, overall, letterGrade, gpaScore]);
 
         // Tự động cập nhật trạng thái trong student_enrollments nếu đã có điểm tổng kết
         if (overall !== null) {
@@ -686,8 +724,9 @@ router.put('/grades', async (req, res) => {
             await db.query('UPDATE student_enrollments SET status = ? WHERE id = ?', [status, enrollment_id]);
         }
 
-        res.json({ success: true, message: 'Cập nhật điểm thành công.' });
+        res.json({ success: true, message: 'Cập nhật điểm thành công.', data: { overall, letterGrade, gpaScore } });
     } catch (error) {
+        console.error('Update Grade Error:', error);
         res.status(500).json({ success: false, message: 'Lỗi cập nhật điểm: ' + error.message });
     }
 });

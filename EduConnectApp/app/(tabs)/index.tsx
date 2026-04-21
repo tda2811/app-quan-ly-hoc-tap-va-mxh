@@ -249,7 +249,7 @@ export default function FeedScreen() {
             </View>
           </View>
         )}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         ListEmptyComponent={loading ? <ActivityIndicator size="large" color="#B71C1C" style={{marginTop: 40}} /> : <Text style={styles.emptyText}>Chưa có bài viết.</Text>}
         refreshing={refreshing}
         onRefresh={onRefresh}

@@ -79,6 +79,7 @@ export default function LMSScreen() {
   const [schType, setSchType] = useState<'theory' | 'practice'>('theory');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEditId, setSelectedEditId] = useState<number | null>(null);
+  const [examSubType, setExamSubType] = useState<'Lý Thuyết' | 'Tự Luận'>('Lý Thuyết');
   const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -140,12 +141,32 @@ export default function LMSScreen() {
   };
 
   const fetchEnrollments = async () => {
-    if (!selectedSubId || !selectedSemId) return;
+    if (!selectedSubId) {
+        Alert.alert('Thông báo', 'Vui lòng chọn môn học.');
+        return;
+    }
+    if (!selectedSemId) {
+        Alert.alert('Thông báo', 'Vui lòng chọn học kỳ.');
+        return;
+    }
     try {
       setLoadingEnrollments(true);
-      const res = await axios.get(`${API_URL}/admin/enrollments?subject_id=${selectedSubId}&semester_id=${selectedSemId}`);
-      if (res.data.success) setEnrollments(res.data.data);
-    } catch (e) { Alert.alert('Lỗi', 'Không thể lấy danh sách sinh viên.'); }
+      const res = await axios.get(`${API_URL}/admin/enrollments`, {
+          params: {
+              subject_id: selectedSubId,
+              semester_id: selectedSemId
+          }
+      });
+      if (res.data.success) {
+          setEnrollments(res.data.data);
+          if (res.data.data.length === 0) {
+              Alert.alert('Thông báo', 'Không tìm thấy sinh viên nào đăng ký môn học này trong kỳ này.');
+          }
+      }
+    } catch (e) { 
+        console.error(e);
+        Alert.alert('Lỗi', 'Không thể lấy danh sách sinh viên.'); 
+    }
     finally { setLoadingEnrollments(false); }
   };
 
@@ -290,11 +311,11 @@ export default function LMSScreen() {
       const payload = {
         teacher_id: user.id,
         subject_id: selectedSubId,
-        room_name: roomName,
+        room_name: viewMode === 'exam' ? `[${examSubType}] ${roomName}` : roomName,
         schedule_date: schDate.toISOString().split('T')[0],
         start_time: sTime.toTimeString().split(' ')[0].substring(0, 5),
         end_time: eTime.toTimeString().split(' ')[0].substring(0, 5),
-        schedule_type: schType
+        schedule_type: viewMode === 'exam' ? 'exam' : schType
       };
 
       if (isEditing && selectedEditId) {
@@ -326,7 +347,20 @@ export default function LMSScreen() {
     setIsEditing(true);
     setSelectedEditId(item.id);
     setSelectedSubId(item.subject_id);
-    setRoomName(item.room_name);
+    
+    if (item.schedule_type === 'exam') {
+        if (item.room_name.startsWith('[Lý Thuyết]')) {
+            setExamSubType('Lý Thuyết');
+            setRoomName(item.room_name.replace('[Lý Thuyết] ', ''));
+        } else if (item.room_name.startsWith('[Tự Luận]')) {
+            setExamSubType('Tự Luận');
+            setRoomName(item.room_name.replace('[Tự Luận] ', ''));
+        } else {
+            setRoomName(item.room_name);
+        }
+    } else {
+        setRoomName(item.room_name);
+    }
     setSchDate(new Date(item.schedule_date));
     
     const [stH, stM] = item.start_time.split(':');
@@ -350,6 +384,7 @@ export default function LMSScreen() {
     setSTime(new Date());
     setETime(new Date());
     setSchType('theory');
+    setExamSubType('Lý Thuyết');
     setSubFilter('');
     setSubjectDropdownVisible(false);
   };
@@ -588,19 +623,23 @@ export default function LMSScreen() {
              <FlatList 
                data={enrollments}
                keyExtractor={e => e.enrollment_id.toString()}
-               contentContainerStyle={{padding: 16}}
+               contentContainerStyle={{padding: 16, paddingBottom: 100}}
                ListEmptyComponent={!loadingEnrollments ? <Text style={styles.emptyText}>Chưa có danh sách sinh viên.</Text> : <ActivityIndicator color="#B71C1C" />}
                renderItem={({item}) => (
                  <TouchableOpacity style={styles.gradeCard} onPress={() => openGradeModal(item)}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                       <Text style={{fontWeight: 'bold'}}>{item.full_name}</Text>
+                       <View>
+                          <Text style={{fontWeight: 'bold'}}>{item.full_name}</Text>
+                          <Text style={{fontSize: 10, color: '#1B5E20'}}>✓ Đã điểm danh: {item.present_count || 0} buổi</Text>
+                       </View>
                        <Text style={{fontSize: 12, color: '#666'}}>{item.student_code}</Text>
                     </View>
-                    <View style={styles.gradeGrid}>
-                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>CC</Text><Text style={styles.gradeValue}>{item.attendance_score ?? '-'}</Text></View>
-                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>GK</Text><Text style={styles.gradeValue}>{item.midterm_score ?? '-'}</Text></View>
-                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>CK</Text><Text style={styles.gradeValue}>{item.final_score ?? '-'}</Text></View>
-                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>TK</Text><Text style={[styles.gradeValue, {color: '#B71C1C'}]}>{item.overall_score ?? '-'}</Text></View>
+                    <View style={styles.scoreRow}>
+                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CC: {item.attendance_score ?? '-'}</Text></View>
+                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>GK: {item.midterm_score ?? '-'}</Text></View>
+                      <View style={styles.scoreItem}><Text style={styles.scoreLabel}>CK: {item.final_score ?? '-'}</Text></View>
+                      <View style={styles.scoreItem}><Text style={[styles.scoreLabel, {fontWeight: 'bold'}]}>TK: {item.overall_score ?? '-'}</Text></View>
+                      <View style={[styles.scoreItem, {backgroundColor: '#E8F5E9', borderRadius: 4}]}><Text style={[styles.scoreLabel, {fontWeight: 'bold', color: '#2E7D32'}]}>GPA: {item.gpa_score ?? '-'}/4.0 ({item.letter_grade ?? '-'})</Text></View>
                     </View>
                  </TouchableOpacity>
                )}
@@ -690,10 +729,10 @@ export default function LMSScreen() {
                   </View>
                 )}
 
-                <TextInput style={styles.inputNarrow} placeholder="Phòng học (VD: A1.101)" value={roomName} onChangeText={setRoomName} />
+                <TextInput style={styles.inputNarrow} placeholder={viewMode === 'exam' ? "Phòng thi (VD: A1.101)" : "Phòng học (VD: A1.101)"} value={roomName} onChangeText={setRoomName} />
                 
                 {/* Date Selection */}
-                <Text style={styles.label}>Ngày giảng dạy:</Text>
+                <Text style={styles.label}>{viewMode === 'exam' ? 'Ngày thi (*):' : 'Ngày giảng dạy (*):'}</Text>
                 {Platform.OS === 'web' ? (
                   <TextInput 
                     style={styles.inputNarrow} 
@@ -744,11 +783,19 @@ export default function LMSScreen() {
                 </View>
 
                 <View style={{flexDirection: 'row', marginBottom: 20}}>
-                   <TouchableOpacity style={[styles.miniBtn, schType === 'theory' && styles.miniBtnActive]} onPress={() => setSchType('theory')}>
-                      <Text style={[styles.miniBtnText, schType === 'theory' && {color:'#FFF'}]}>Lý Thuyết</Text>
+                   <TouchableOpacity 
+                     style={[styles.miniBtn, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && styles.miniBtnActive]} 
+                     onPress={() => viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory')}
+                   >
+                      <Text style={[styles.miniBtnText, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && {color:'#FFF'}]}>Lý Thuyết</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity style={[styles.miniBtn, schType === 'practice' && styles.miniBtnActive]} onPress={() => setSchType('practice')}>
-                      <Text style={[styles.miniBtnText, schType === 'practice' && {color:'#FFF'}]}>Thực Hành</Text>
+                   <TouchableOpacity 
+                     style={[styles.miniBtn, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && styles.miniBtnActive]} 
+                     onPress={() => viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice')}
+                   >
+                      <Text style={[styles.miniBtnText, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && {color:'#FFF'}]}>
+                        {viewMode === 'exam' ? 'Tự Luận' : 'Thực Hành'}
+                      </Text>
                    </TouchableOpacity>
                 </View>
 
@@ -767,7 +814,8 @@ export default function LMSScreen() {
             <View style={styles.modalBackDrop}>
               <View style={styles.modalContent}>
                 <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 15, textAlign: 'center'}}>NHẬP ĐIỂM SINH VIÊN</Text>
-                <Text style={{marginBottom: 10, color: '#666'}}>Sinh viên: <Text style={{fontWeight: 'bold', color: '#000'}}>{selectedEnrollment?.full_name}</Text></Text>
+                <Text style={{marginBottom: 2, color: '#666'}}>Sinh viên: <Text style={{fontWeight: 'bold', color: '#000'}}>{selectedEnrollment?.full_name}</Text></Text>
+                <Text style={{marginBottom: 10, fontSize: 11, color: '#1B5E20'}}>Số buổi đi học thực tế: {selectedEnrollment?.present_count || 0} buổi</Text>
                 
                 <Text style={styles.label}>Điểm Chuyên cần (10%):</Text>
                 <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.att} onChangeText={t => setScoreInput({...scoreInput, att: t})} placeholder="Nhập điểm CC..." />
@@ -849,6 +897,9 @@ const styles = StyleSheet.create({
   gradeCol: { alignItems: 'center' },
   gradeLabel: { fontSize: 10, color: '#999' },
   gradeValue: { fontWeight: 'bold' },
+  scoreRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F9F9F9', padding: 8, borderRadius: 4, marginTop: 8 },
+  scoreItem: { flex: 1, alignItems: 'center' },
+  scoreLabel: { fontSize: 10, color: '#444' },
   cameraBackdrop: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   cameraView: { width: '80%', aspectRatio: 1 },
   closeCamBtn: { backgroundColor: '#D32F2F', padding: 10, marginTop: 20 },

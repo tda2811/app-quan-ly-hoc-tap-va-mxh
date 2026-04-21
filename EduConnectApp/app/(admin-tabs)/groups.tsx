@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Modal, TextInput, Platform, ScrollView, KeyboardAvoidingView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
 
@@ -28,15 +29,17 @@ export default function AdminGroupsScreen() {
    const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
    const [userSearchText, setUserSearchText] = useState('');
 
-   useEffect(() => {
-      fetchGroups();
-   }, []);
+   useFocusEffect(
+      React.useCallback(() => {
+         fetchGroups(groups.length > 0);
+      }, [])
+   );
 
    useEffect(() => {
-      if (viewMembers && selectedId) {
+      if (selectedId) {
          fetchMembers();
       }
-   }, [viewMembers, selectedId]);
+   }, [selectedId]);
 
    useEffect(() => {
       if (viewAvailableUsers && selectedId) {
@@ -58,9 +61,9 @@ export default function AdminGroupsScreen() {
       }
    };
 
-   const fetchGroups = async () => {
+   const fetchGroups = async (silent = false) => {
       try {
-         setLoading(true);
+         if (!silent) setLoading(true);
          const res = await axios.get(`${API_URL}/admin/groups`);
          if (res.data && res.data.success) {
             setGroups(res.data.data);
@@ -138,7 +141,7 @@ export default function AdminGroupsScreen() {
             Alert.alert('Thành công', 'Đã thêm thành viên.');
             setNewMemberEmail('');
             fetchMembers();
-            fetchGroups();
+            fetchGroups(true);
          }
       } catch (error: any) {
          Alert.alert('Lỗi', error.response?.data?.message || 'Thêm thành viên thất bại.');
@@ -152,7 +155,7 @@ export default function AdminGroupsScreen() {
          const res = await axios.delete(`${API_URL}/admin/groups/${selectedId}/members/${userId}`);
          if (res.data.success) {
             fetchMembers();
-            fetchGroups();
+            fetchGroups(true);
          }
       } catch (error) {
          Alert.alert('Lỗi', 'Xóa thành viên thất bại.');
@@ -172,7 +175,7 @@ export default function AdminGroupsScreen() {
             setSelectedUserIds([]);
             setViewAvailableUsers(false); // Back to member list
             fetchMembers();
-            fetchGroups();
+            fetchGroups(true);
          }
       } catch (error: any) {
          Alert.alert('Lỗi', error.response?.data?.message || 'Thao tác thất bại.');
@@ -191,7 +194,7 @@ export default function AdminGroupsScreen() {
                   const res = await axios.delete(`${API_URL}/admin/groups/${id}`);
                   if (res.data.success) {
                      Alert.alert('Thành công', 'Đã xóa hội nhóm.');
-                     fetchGroups();
+                     fetchGroups(true);
                   }
                } catch (error) {
                   Alert.alert('Lỗi', 'Không thể xóa hội nhóm.');
@@ -238,12 +241,11 @@ export default function AdminGroupsScreen() {
          {/* Modal Add/Edit Group */}
          <Modal visible={modalVisible} animationType="slide" transparent={true}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackDrop}>
-               <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-                  <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                     <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Hội Nhóm' : 'Tạo Hội Nhóm'}</Text>
+               <View style={[styles.modalContent, { height: '80%' }]}>
+                  <Text style={styles.modalTitle}>{viewMembers ? 'Thành Viên Nhóm' : isEditing ? 'Sửa Hội Nhóm' : 'Tạo Hội Nhóm'}</Text>
 
                   {!viewMembers ? (
-                     <>
+                     <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
                         <TextInput style={styles.input} placeholder="Tên nhóm / cộng đồng... (Vd: Câu lạc bộ IT)" value={name} onChangeText={setName} />
 
                         <Text style={{ fontSize: 13, color: '#666', marginBottom: 6, marginTop: 10, alignSelf: 'flex-start' }}>Phân Loại Nhóm:</Text>
@@ -271,103 +273,98 @@ export default function AdminGroupsScreen() {
                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => setModalVisible(false)}><Text style={styles.btnText}>Hủy</Text></TouchableOpacity>
                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#D32F2F' }]} onPress={handleSaveGroup}><Text style={styles.btnText}>Lưu</Text></TouchableOpacity>
                         </View>
-                     </>
+                     </ScrollView>
                   ) : (
-                     <>
+                     <View style={{ width: '100%', flex: 1 }}>
                         {!viewAvailableUsers ? (
                            <>
                               {/* BỘ LỌC THÊM THÀNH VIÊN ĐƠN LẺ */}
                               <View style={{ flexDirection: 'row', width: '100%', marginBottom: 12 }}>
-                                 <TextInput style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]} placeholder="Kính gửi bằng Email..." value={newMemberEmail} onChangeText={setNewMemberEmail} keyboardType="email-address" autoCapitalize="none" />
+                                 <TextInput style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]} placeholder="Email..." value={newMemberEmail} onChangeText={setNewMemberEmail} keyboardType="email-address" autoCapitalize="none" />
                                  <TouchableOpacity style={{ backgroundColor: '#D32F2F', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8 }} onPress={handleAddMember} disabled={actionLoading}>
                                     <Text style={{ color: '#FFF', fontWeight: 'bold' }}>+</Text>
                                  </TouchableOpacity>
                               </View>
 
                               <TouchableOpacity style={{ backgroundColor: '#E3F2FD', width: '100%', padding: 10, borderRadius: 8, marginBottom: 10, alignItems: 'center' }} onPress={() => setViewAvailableUsers(true)}>
-                                 <Text style={{ color: '#1976D2', fontWeight: 'bold' }}>➕ CHỌN THÀNH VIÊN TỪ DANH SÁCH</Text>
+                                 <Text style={{ color: '#1976D2', fontWeight: 'bold' }}>➕ CHỌN TỪ DANH SÁCH</Text>
                               </TouchableOpacity>
 
-                              {/* DANH SÁCH THÀNH VIÊN HIỆN TẠI */}
+                              {/* DANH SÁCH THÀNH VIÊN HIỆN TẠI (KHÔNG CÒN LỒNG SCROLLVIEW) */}
                               <FlatList
                                  data={members}
                                  keyExtractor={(m) => m.user_id.toString()}
-                                 style={{ width: '100%', maxHeight: 220 }}
+                                 style={{ flex: 1 }}
                                  renderItem={({ item }) => (
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#EEE', paddingVertical: 8 }}>
                                        <View style={{ flex: 1 }}>
                                           <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{item.full_name || 'Chưa cập nhật'}</Text>
-                                          <Text style={{ fontSize: 12, color: '#666' }}>{item.email}</Text>
+                                          <Text style={{ fontSize: 11, color: '#666' }}>{item.email}</Text>
                                        </View>
                                        <TouchableOpacity onPress={() => handleDeleteMember(item.user_id)}>
                                           <Text style={{ color: '#D32F2F', fontSize: 13 }}>Xóa</Text>
                                        </TouchableOpacity>
                                     </View>
                                  )}
-                                 ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 10 }}>Nhóm chưa có thành viên nào.</Text>}
+                                 ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 10 }}>Nhóm trống.</Text>}
                               />
 
-                              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC', width: '100%', marginTop: 16 }]} onPress={() => setViewMembers(false)}>
+                              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC', width: '100%', marginTop: 16, flex: 0 }]} onPress={() => setViewMembers(false)}>
                                  <Text style={styles.btnText}>Quay Lại</Text>
                               </TouchableOpacity>
                            </>
                         ) : (
                            <>
-                              <TextInput 
-                                 style={styles.input} 
-                                 placeholder="🔍 Tìm tên hoặc email..." 
+                              <TextInput
+                                 style={styles.input}
+                                 placeholder="🔍 Tìm tên hoặc email..."
                                  value={userSearchText}
                                  onChangeText={setUserSearchText}
                               />
-                              <Text style={{fontSize: 14, color: '#666', marginBottom: 10}}>Chọn thành viên cần thêm ({selectedUserIds.length}):</Text>
-                              
-                              <ScrollView 
-                                 style={{width: '100%', maxHeight: 240}}
-                                 nestedScrollEnabled
-                              >
-                                 {allUsers.filter((u: any) => (u.full_name || u.email).toLowerCase().includes(userSearchText.toLowerCase())).length === 0 ? (
-                                    <Text style={{textAlign: 'center', color: '#888', marginTop: 20}}>Hết sinh viên khả dụng.</Text>
-                                 ) : (
-                                    allUsers.filter((u: any) => (u.full_name || u.email).toLowerCase().includes(userSearchText.toLowerCase())).map((item: any) => {
-                                       const isSelected = selectedUserIds.includes(item.id);
-                                       return (
-                                          <TouchableOpacity 
-                                             key={item.id}
-                                             style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EEE'}}
-                                             onPress={() => {
-                                                if (isSelected) {
-                                                   setSelectedUserIds(selectedUserIds.filter(id => id !== item.id));
-                                                } else {
-                                                   setSelectedUserIds([...selectedUserIds, item.id]);
-                                                }
-                                             }}
-                                          >
-                                             <View style={{flex: 1}}>
-                                                <Text style={{fontWeight: 'bold', fontSize: 13, color: isSelected ? '#D32F2F' : '#333'}}>{item.email}</Text>
-                                                <Text style={{fontSize: 12, color: '#666'}}>Vai trò: {item.role}</Text>
-                                             </View>
-                                             <View style={{width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D32F2F', backgroundColor: isSelected ? '#D32F2F' : '#FFF', justifyContent: 'center', alignItems: 'center'}}>
-                                                {isSelected && <Text style={{color: '#FFF', fontSize: 11, fontWeight: 'bold'}}>✓</Text>}
-                                             </View>
-                                          </TouchableOpacity>
-                                       );
-                                    })
-                                 )}
-                              </ScrollView>
+                              <Text style={{ fontSize: 14, color: '#666', marginBottom: 10 }}>Chọn thành viên ({selectedUserIds.length}):</Text>
 
-                              <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 16}}>
-                                 <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setViewAvailableUsers(false)}>
+                              <FlatList
+                                 style={{ flex: 1 }}
+                                 data={allUsers.filter((u: any) => (u.full_name || u.email || '').toLowerCase().includes(userSearchText.toLowerCase()))}
+                                 keyExtractor={(item) => item.id.toString()}
+                                 renderItem={({ item }) => {
+                                    const isSelected = selectedUserIds.includes(item.id);
+                                    return (
+                                       <TouchableOpacity
+                                          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EEE' }}
+                                          onPress={() => {
+                                             if (isSelected) {
+                                                setSelectedUserIds(selectedUserIds.filter(id => id !== item.id));
+                                             } else {
+                                                setSelectedUserIds([...selectedUserIds, item.id]);
+                                             }
+                                          }}
+                                       >
+                                          <View style={{ flex: 1 }}>
+                                             <Text style={{ fontWeight: 'bold', fontSize: 13, color: isSelected ? '#D32F2F' : '#333' }}>{item.email}</Text>
+                                             <Text style={{ fontSize: 12, color: '#666' }}>Vai trò: {item.role}</Text>
+                                          </View>
+                                          <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D32F2F', backgroundColor: isSelected ? '#D32F2F' : '#FFF', justifyContent: 'center', alignItems: 'center' }}>
+                                             {isSelected && <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>✓</Text>}
+                                          </View>
+                                       </TouchableOpacity>
+                                    );
+                                 }}
+                                 ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>Không thấy sinh viên.</Text>}
+                              />
+
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 16, flex: 0 }}>
+                                 <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => setViewAvailableUsers(false)}>
                                     <Text style={styles.btnText}>Hủy</Text>
                                  </TouchableOpacity>
-                                 <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#D32F2F'}]} onPress={handleBulkAddMembers} disabled={actionLoading}>
+                                 <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#D32F2F' }]} onPress={handleBulkAddMembers} disabled={actionLoading}>
                                     <Text style={styles.btnText}>Thêm đã chọn</Text>
                                  </TouchableOpacity>
                               </View>
                            </>
                         )}
-                     </>
+                     </View>
                   )}
-                  </ScrollView>
                </View>
             </KeyboardAvoidingView>
          </Modal>
@@ -387,9 +384,9 @@ const styles = StyleSheet.create({
    fab: { position: 'absolute', bottom: 90, right: 25, backgroundColor: '#D32F2F', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4.65, shadowOffset: { width: 0, height: 4 } },
    fabText: { color: '#FFF', fontSize: 30, fontWeight: 'bold' },
 
-   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-   modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 12, alignItems: 'center' },
-   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#D32F2F' },
+   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+   modalContent: { backgroundColor: '#FFF', width: '92%', padding: 20, borderRadius: 16, elevation: 10, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
+   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, color: '#D32F2F', textAlign: 'center' },
    input: { width: '100%', height: 48, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, marginBottom: 10 },
 
    typeBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#CCC', backgroundColor: '#F9F9F9' },
