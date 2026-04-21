@@ -32,6 +32,10 @@ interface GradeItem {
   midterm_score: number | null;
   final_score: number | null;
   overall_score: number | null;
+  gpa_score: number | null;
+  letter_grade: string | null;
+  semester_name: string | null;
+  credit: number | null;
 }
 
 interface DocumentItem {
@@ -651,15 +655,57 @@ export default function LMSScreen() {
             keyExtractor={g => g.id.toString()} 
             refreshing={refreshing}
             onRefresh={onRefresh}
+            ListHeaderComponent={() => {
+              const gradedSubjects = grades.filter(g => g.gpa_score !== null && g.gpa_score !== undefined);
+              const totalCredits = gradedSubjects.reduce((acc, curr) => acc + (curr.credit || 0), 0);
+              const weightedGPA = gradedSubjects.reduce((acc, curr) => acc + ((curr.gpa_score || 0) * (curr.credit || 0)), 0);
+              const avgGPA = totalCredits > 0 ? (weightedGPA / totalCredits).toFixed(2) : '0.00';
+              
+              // Tính xếp loại học lực dựa trên GPA hệ 4
+              const gpaNum = parseFloat(avgGPA);
+              let rank = 'Chưa xếp loại';
+              let rankColor = '#666';
+              if (gpaNum >= 3.6) { rank = 'XUẤT SẮC'; rankColor = '#D32F2F'; }
+              else if (gpaNum >= 3.2) { rank = 'GIỎI'; rankColor = '#FF9800'; }
+              else if (gpaNum >= 2.5) { rank = 'KHÁ'; rankColor = '#1976D2'; }
+              else if (gpaNum >= 2.0) { rank = 'TRUNG BÌNH'; rankColor = '#4CAF50'; }
+              else if (totalCredits > 0) { rank = 'YẾU'; rankColor = '#F44336'; }
+
+              return (
+                <View style={[styles.gradeCard, {backgroundColor: '#FFF', borderLeftWidth: 5, borderLeftColor: '#B71C1C', elevation: 3}]}>
+                   <Text style={{fontWeight: 'bold', color: '#B71C1C', fontSize: 18, marginBottom: 8}}>Hồ Sơ Học Tập Toàn Khóa</Text>
+                   <View style={{height: 1, backgroundColor: '#EEE', marginBottom: 10}} />
+                   
+                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6}}>
+                      <Text style={{fontSize: 14, color: '#555'}}>Tổng số tín chỉ đạt:</Text>
+                      <Text style={{fontWeight: 'bold', fontSize: 14}}>{totalCredits}</Text>
+                   </View>
+
+                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6}}>
+                      <Text style={{fontSize: 14, color: '#555'}}>Điểm GPA toàn khóa (hệ 4):</Text>
+                      <Text style={{fontWeight: 'bold', fontSize: 16, color: '#B71C1C'}}>{avgGPA} / 4.00</Text>
+                   </View>
+
+                   <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                      <Text style={{fontSize: 14, color: '#555'}}>Xếp loại học lực:</Text>
+                      <Text style={{fontWeight: 'bold', fontSize: 14, color: rankColor}}>{rank}</Text>
+                   </View>
+                </View>
+              );
+            }}
             ListEmptyComponent={!loadingGrades ? <Text style={styles.emptyText}>Chưa có điểm số.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{marginTop: 20}} />}
             renderItem={({item}) => (
             <View style={styles.gradeCard}>
-              <Text style={styles.gradeSubject}>{item.subject_name}</Text>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}>
+                 <Text style={[styles.gradeSubject, {flex: 1}]}>{item.subject_name}</Text>
+                 <Text style={{fontSize: 11, color: '#666'}}>{item.semester_name}</Text>
+              </View>
               <View style={styles.gradeGrid}>
                 <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Điểm danh</Text><Text style={styles.gradeValue}>{item.attendance_score || '-'}</Text></View>
                 <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Giữa kỳ</Text><Text style={styles.gradeValue}>{item.midterm_score || '-'}</Text></View>
                 <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Cuối kỳ</Text><Text style={styles.gradeValue}>{item.final_score || '-'}</Text></View>
                 <View style={styles.gradeCol}><Text style={styles.gradeLabel}>Tổng kết</Text><Text style={[styles.gradeValue, {color: '#B71C1C'}]}>{item.overall_score || '-'}</Text></View>
+                <View style={[styles.gradeCol, {backgroundColor: '#F5F5F5', padding: 4, borderRadius: 4}]}><Text style={styles.gradeLabel}>GPA/Hệ 4</Text><Text style={[styles.gradeValue, {color: '#2E7D32'}]}>{item.gpa_score || '-'}</Text></View>
               </View>
             </View>
           )} contentContainerStyle={{padding: 16}} />

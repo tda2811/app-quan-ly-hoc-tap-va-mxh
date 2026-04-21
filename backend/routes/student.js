@@ -91,11 +91,13 @@ router.get('/grades', async (req, res) => {
 
     try {
         const [grades] = await db.query(`
-            SELECT g.*, sub.name as subject_name 
+            SELECT g.*, sub.name as subject_name, sem.name as semester_name, sub.credit
             FROM student_enrollments se
             JOIN grades g ON se.id = g.enrollment_id
             JOIN subjects sub ON se.subject_id = sub.id
+            JOIN semesters sem ON se.semester_id = sem.id
             WHERE se.student_id = ?
+            ORDER BY sem.start_date DESC, sub.name ASC
         `, [student_id]);
         
         res.json({ success: true, data: grades });
