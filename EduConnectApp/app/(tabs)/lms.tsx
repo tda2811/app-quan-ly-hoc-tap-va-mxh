@@ -261,6 +261,28 @@ export default function LMSScreen() {
     }
   };
 
+  const fetchAttendees = async (scheduleId: number) => {
+    try {
+      setLoadingAttendees(true);
+      const res = await axios.get(`${API_URL}/attendance/list/${scheduleId}`);
+      if (res.data.success) {
+        setAttendees(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingAttendees(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedSchedule) {
+      fetchAttendees(selectedSchedule.id);
+    } else {
+      setAttendees([]);
+    }
+  }, [selectedSchedule]);
+
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
@@ -721,19 +743,52 @@ export default function LMSScreen() {
         {/* QR Code Modal for Teacher */}
         <Modal visible={!!selectedSchedule} animationType="fade" transparent={true}>
            <View style={styles.modalBackDrop}>
-              <View style={[styles.modalContent, {alignItems: 'center'}]}>
-                  <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 10}}>{selectedSchedule?.subject_name}</Text>
-                  <Text style={{fontSize: 12, color: '#666', marginBottom: 20}}>Sinh viên quét mã bên dưới để điểm danh</Text>
+              <View style={[styles.modalContent, {alignItems: 'center', width: '92%', maxHeight: '85%'}]}>
+                  <Text style={{fontWeight: 'bold', fontSize: 18, color: '#B71C1C', marginBottom: 5}}>{selectedSchedule?.subject_name}</Text>
+                  <Text style={{fontSize: 12, color: '#666', marginBottom: 15}}>Sinh viên quét mã bên dưới để điểm danh</Text>
                   
                   {selectedSchedule && (
-                    <Image 
-                      source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${selectedSchedule.id}` }} 
-                      style={{ width: 220, height: 220 }}
-                    />
+                    <View style={{padding: 10, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 15}}>
+                       <Image 
+                         source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedSchedule.id}` }} 
+                         style={{ width: 180, height: 180 }}
+                       />
+                    </View>
                   )}
 
+                  <View style={{width: '100%', flex: 1, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10}}>
+                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+                        <Text style={{fontWeight: 'bold', fontSize: 14, color: '#333'}}>Thống kê điểm danh ({attendees.length})</Text>
+                        <TouchableOpacity onPress={() => selectedSchedule && fetchAttendees(selectedSchedule.id)}>
+                           <Text style={{color: '#1976D2', fontSize: 12, fontWeight: 'bold'}}>🔄 Tải lại</Text>
+                        </TouchableOpacity>
+                     </View>
+
+                     {loadingAttendees ? (
+                        <ActivityIndicator color="#B71C1C" style={{marginTop: 20}} />
+                     ) : (
+                        <FlatList 
+                           data={attendees}
+                           keyExtractor={(item) => item.id.toString()}
+                           renderItem={({item}) => (
+                              <View style={{flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0'}}>
+                                 <View style={{flex: 1}}>
+                                    <Text style={{fontWeight: 'bold', fontSize: 13}}>{item.full_name}</Text>
+                                    <Text style={{fontSize: 11, color: '#666'}}>{item.email}</Text>
+                                 </View>
+                                 <View style={{alignItems: 'flex-end'}}>
+                                    <Text style={{fontSize: 11, color: '#1B5E20', fontWeight: 'bold'}}>✓ ĐÃ VÀO</Text>
+                                    <Text style={{fontSize: 10, color: '#999'}}>{new Date(item.scanned_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</Text>
+                                 </View>
+                              </View>
+                           )}
+                           ListEmptyComponent={<Text style={{textAlign: 'center', color: '#999', marginTop: 20}}>Chưa có SV nào quét mã</Text>}
+                        />
+                     )}
+                  </View>
+
                   <TouchableOpacity 
-                    style={[styles.scanBtn, {backgroundColor: '#B71C1C', marginTop: 30, width: '100%'}]} 
+                    style={[styles.scanBtn, {backgroundColor: '#555', marginTop: 15, width: '100%', marginBottom: 0}]} 
                     onPress={() => setSelectedSchedule(null)}
                   >
                     <Text style={{color: '#FFF', fontWeight: 'bold'}}>ĐÓNG</Text>
