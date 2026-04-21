@@ -86,6 +86,14 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="grades"
+        options={{
+          href: null,
+          title: 'Quản Lý Điểm',
+          headerTitle: 'Quản Lý Điểm Sinh Viên',
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
           href: null,

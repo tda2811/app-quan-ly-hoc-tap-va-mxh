@@ -607,4 +607,99 @@ router.put('/majors/:id', async (req, res) => {
     }
 });
 
+/**
+ * QUẢN LÝ ĐIỂM SỐ (GRADES)
+ * Dùng cho cả Admin và Giáo viên
+ */
+
+// Lấy danh sách đăng ký học của một môn/kỳ
+router.get('/enrollments', async (req, res) => {
+    const { subject_id, semester_id, class_id } = req.query;
+    try {
+        let query = `
+            SELECT se.id as enrollment_id, s.user_id, s.full_name, s.student_code, 
+                   sub.name as subject_name, sem.name as semester_name,
+                   g.attendance_score, g.midterm_score, g.final_score, g.overall_score
+            FROM student_enrollments se
+            JOIN students s ON se.student_id = s.user_id
+            JOIN subjects sub ON se.subject_id = sub.id
+            JOIN semesters sem ON se.semester_id = sem.id
+            LEFT JOIN grades g ON se.id = g.enrollment_id
+            WHERE 1=1
+        `;
+        const params = [];
+        if (subject_id) {
+            query += ' AND se.subject_id = ?';
+            params.push(subject_id);
+        }
+        if (semester_id) {
+            query += ' AND se.semester_id = ?';
+            params.push(semester_id);
+        }
+        if (class_id) {
+            query += ' AND s.class_id = ?';
+            params.push(class_id);
+        }
+
+        const [rows] = await db.query(query, params);
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách đăng ký: ' + error.message });
+    }
+});
+
+// Cập nhật điểm cho một sinh viên (enrollment)
+router.put('/grades', async (req, res) => {
+    const { enrollment_id, attendance_score, midterm_score, final_score } = req.body;
+    
+    if (!enrollment_id) return res.status(400).json({ success: false, message: 'Thiếu enrollment_id' });
+
+    try {
+        // Tính điểm tổng kết (giả định: 10% chuyên cần, 30% giữa kỳ, 60% cuối kỳ)
+        let overall = null;
+        if (attendance_score !== null && midterm_score !== null && final_score !== null) {
+            overall = (parseFloat(attendance_score) * 0.1) + 
+                      (parseFloat(midterm_score) * 0.3) + 
+                      (parseFloat(final_score) * 0.6);
+            overall = Math.round(overall * 10) / 10; // Làm tròn 1 chữ số
+        }
+
+        // Kiểm tra xem đã có bản ghi điểm chưa
+        const [exists] = await db.query('SELECT id FROM grades WHERE enrollment_id = ?', [enrollment_id]);
+
+        if (exists.length > 0) {
+            await db.query(`
+                UPDATE grades 
+                SET attendance_score = ?, midterm_score = ?, final_score = ?, overall_score = ?
+                WHERE enrollment_id = ?
+            `, [attendance_score, midterm_score, final_score, overall, enrollment_id]);
+        } else {
+            await db.query(`
+                INSERT INTO grades (enrollment_id, attendance_score, midterm_score, final_score, overall_score)
+                VALUES (?, ?, ?, ?, ?)
+            `, [enrollment_id, attendance_score, midterm_score, final_score, overall]);
+        }
+
+        // Tự động cập nhật trạng thái trong student_enrollments nếu đã có điểm tổng kết
+        if (overall !== null) {
+            const status = overall >= 4.0 ? 'passed' : 'failed';
+            await db.query('UPDATE student_enrollments SET status = ? WHERE id = ?', [status, enrollment_id]);
+        }
+
+        res.json({ success: true, message: 'Cập nhật điểm thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật điểm: ' + error.message });
+    }
+});
+
+// Lấy danh sách Học kỳ
+router.get('/semesters', async (req, res) => {
+    try {
+        const [semesters] = await db.query('SELECT * FROM semesters ORDER BY start_date DESC');
+        res.json({ success: true, data: semesters });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi lấy danh sách học kỳ.' });
+    }
+});
+
 module.exports = router;

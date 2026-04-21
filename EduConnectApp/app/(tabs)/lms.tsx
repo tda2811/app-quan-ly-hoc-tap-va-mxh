@@ -49,7 +49,7 @@ export default function LMSScreen() {
 
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents' | 'attendance'>('study');
+  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents' | 'attendance' | 'manage_grades'>('study');
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -88,12 +88,24 @@ export default function LMSScreen() {
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
-
   const [refreshing, setRefreshing] = useState(false);
+
+  // Grade Management for Teacher
+  const [semesters, setSemesters] = useState<any[]>([]);
+  const [selectedSemId, setSelectedSemId] = useState<number | null>(null);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+  const [gradeModalVisible, setGradeModalVisible] = useState(false);
+  const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
+  const [scoreInput, setScoreInput] = useState({ att: '', mid: '', final: '' });
+  const [semDropdownVisible, setSemDropdownVisible] = useState(false);
 
   useEffect(() => {
     fetchSchedules();
-    if (user.role === 'teacher') fetchSubjects();
+    if (user.role === 'teacher') {
+      fetchSubjects();
+      fetchSemesters();
+    }
   }, [user]);
 
   const onRefresh = async () => {
@@ -115,6 +127,26 @@ export default function LMSScreen() {
       const res = await axios.get(`${API_URL}/admin/subjects`);
       if (res.data.success) setSubjectsList(res.data.data);
     } catch (e) { console.log(e); }
+  };
+
+  const fetchSemesters = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/semesters`);
+      if (res.data.success) {
+        setSemesters(res.data.data);
+        if (res.data.data.length > 0) setSelectedSemId(res.data.data[0].id);
+      }
+    } catch (e) { console.log(e); }
+  };
+
+  const fetchEnrollments = async () => {
+    if (!selectedSubId || !selectedSemId) return;
+    try {
+      setLoadingEnrollments(true);
+      const res = await axios.get(`${API_URL}/admin/enrollments?subject_id=${selectedSubId}&semester_id=${selectedSemId}`);
+      if (res.data.success) setEnrollments(res.data.data);
+    } catch (e) { Alert.alert('Lỗi', 'Không thể lấy danh sách sinh viên.'); }
+    finally { setLoadingEnrollments(false); }
   };
 
   const fetchSchedules = async () => {
@@ -142,6 +174,33 @@ export default function LMSScreen() {
     } finally {
       setLoadingGrades(false);
     }
+  };
+
+  const handleUpdateGrade = async () => {
+    if (!selectedEnrollment) return;
+    try {
+      const res = await axios.put(`${API_URL}/admin/grades`, {
+        enrollment_id: selectedEnrollment.enrollment_id,
+        attendance_score: scoreInput.att === '' ? null : parseFloat(scoreInput.att),
+        midterm_score: scoreInput.mid === '' ? null : parseFloat(scoreInput.mid),
+        final_score: scoreInput.final === '' ? null : parseFloat(scoreInput.final),
+      });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Cập nhật điểm thành công.');
+        setGradeModalVisible(false);
+        fetchEnrollments();
+      }
+    } catch (e) { Alert.alert('Lỗi', 'Không thể cập nhật điểm.'); }
+  };
+
+  const openGradeModal = (enrollment: any) => {
+    setSelectedEnrollment(enrollment);
+    setScoreInput({
+      att: enrollment.attendance_score?.toString() || '',
+      mid: enrollment.midterm_score?.toString() || '',
+      final: enrollment.final_score?.toString() || '',
+    });
+    setGradeModalVisible(true);
   };
 
   const fetchDocuments = async (isRefresh = false) => {
@@ -377,26 +436,37 @@ export default function LMSScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
         
-        <View style={styles.tabBar}>
-          <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
-              <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
-              <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
-              <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
-          </TouchableOpacity>
-          {user.role === 'student' && (
-              <>
-                <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
-                  <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
-                  <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
-                </TouchableOpacity>
-              </>
-          )}
+        <View style={styles.tabContainer}>
+           <ScrollView 
+             horizontal 
+             showsHorizontalScrollIndicator={false} 
+             contentContainerStyle={styles.tabBarScroll}
+           >
+              <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
+                  <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
+                  <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
+                  <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+              </TouchableOpacity>
+              {user.role === 'student' && (
+                  <>
+                    <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
+                      <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
+                      <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
+                    </TouchableOpacity>
+                  </>
+              )}
+              {user.role === 'teacher' && (
+                 <TouchableOpacity style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]} onPress={() => { setViewMode('manage_grades'); }}>
+                   <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
+                 </TouchableOpacity>
+              )}
+           </ScrollView>
         </View>
 
         {user.role === 'student' && viewMode === 'study' && (
@@ -473,6 +543,69 @@ export default function LMSScreen() {
                <Text style={styles.cardText}>📍 IP: {item.network_ip || 'N/A'}</Text>
             </View>
           )} contentContainerStyle={{padding: 16}} />
+        ) : viewMode === 'manage_grades' ? (
+          <View style={{flex: 1}}>
+             <View style={{padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE'}}>
+                <Text style={styles.label}>1. Chọn Học Kỳ:</Text>
+                <TouchableOpacity style={styles.inputPicker} onPress={() => setSemDropdownVisible(!semDropdownVisible)}>
+                  <Text>{semesters.find(s => s.id === selectedSemId)?.name || 'Chọn Học Kỳ'}</Text>
+                </TouchableOpacity>
+                {semDropdownVisible && (
+                  <View style={styles.dropdownOverlay}>
+                    {semesters.map(s => (
+                      <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSemId(s.id); setSemDropdownVisible(false); }}>
+                        <Text>{s.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <Text style={styles.label}>2. Chọn Môn Học:</Text>
+                <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                   <Text>{subjectsList.find(s => s.id === selectedSubId)?.name || 'Chọn Môn Học'}</Text>
+                </TouchableOpacity>
+                {subjectDropdownVisible && (
+                  <View style={[styles.dropdownOverlay, {maxHeight: 200}]}>
+                     <ScrollView nestedScrollEnabled>
+                        {subjectsList.map(s => (
+                          <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(s.id); setSubjectDropdownVisible(false); }}>
+                            <Text>{s.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                     </ScrollView>
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                   style={[styles.scanBtn, {margin: 0, marginTop: 10, backgroundColor: '#B71C1C'}]} 
+                   onPress={fetchEnrollments}
+                   disabled={!selectedSubId || !selectedSemId}
+                >
+                   <Text style={styles.scanBtnText}>LẤY DANH SÁCH SINH VIÊN</Text>
+                </TouchableOpacity>
+             </View>
+
+             <FlatList 
+               data={enrollments}
+               keyExtractor={e => e.enrollment_id.toString()}
+               contentContainerStyle={{padding: 16}}
+               ListEmptyComponent={!loadingEnrollments ? <Text style={styles.emptyText}>Chưa có danh sách sinh viên.</Text> : <ActivityIndicator color="#B71C1C" />}
+               renderItem={({item}) => (
+                 <TouchableOpacity style={styles.gradeCard} onPress={() => openGradeModal(item)}>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                       <Text style={{fontWeight: 'bold'}}>{item.full_name}</Text>
+                       <Text style={{fontSize: 12, color: '#666'}}>{item.student_code}</Text>
+                    </View>
+                    <View style={styles.gradeGrid}>
+                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>CC</Text><Text style={styles.gradeValue}>{item.attendance_score ?? '-'}</Text></View>
+                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>GK</Text><Text style={styles.gradeValue}>{item.midterm_score ?? '-'}</Text></View>
+                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>CK</Text><Text style={styles.gradeValue}>{item.final_score ?? '-'}</Text></View>
+                      <View style={styles.gradeCol}><Text style={styles.gradeLabel}>TK</Text><Text style={[styles.gradeValue, {color: '#B71C1C'}]}>{item.overall_score ?? '-'}</Text></View>
+                    </View>
+                 </TouchableOpacity>
+               )}
+             />
+          </View>
         ) : (
           <FlatList 
             data={grades} 
@@ -628,6 +761,32 @@ export default function LMSScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
+        {/* Grade Edit Modal */}
+        <Modal visible={gradeModalVisible} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalBackDrop}>
+              <View style={styles.modalContent}>
+                <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 15, textAlign: 'center'}}>NHẬP ĐIỂM SINH VIÊN</Text>
+                <Text style={{marginBottom: 10, color: '#666'}}>Sinh viên: <Text style={{fontWeight: 'bold', color: '#000'}}>{selectedEnrollment?.full_name}</Text></Text>
+                
+                <Text style={styles.label}>Điểm Chuyên cần (10%):</Text>
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.att} onChangeText={t => setScoreInput({...scoreInput, att: t})} placeholder="Nhập điểm CC..." />
+                
+                <Text style={styles.label}>Điểm Giữa kỳ (30%):</Text>
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.mid} onChangeText={t => setScoreInput({...scoreInput, mid: t})} placeholder="Nhập điểm GK..." />
+
+                <Text style={styles.label}>Điểm Cuối kỳ (60%):</Text>
+                <TextInput style={styles.inputNarrow} keyboardType="numeric" value={scoreInput.final} onChangeText={t => setScoreInput({...scoreInput, final: t})} placeholder="Nhập điểm CK..." />
+
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20}}>
+                   <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={() => setGradeModalVisible(false)}><Text>Hủy</Text></TouchableOpacity>
+                   <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#B71C1C'}]} onPress={handleUpdateGrade}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Lưu Điểm</Text></TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
         {user.role === 'teacher' && (viewMode === 'study' || viewMode === 'exam') && (
           <TouchableOpacity 
             style={styles.fab} 
@@ -648,10 +807,26 @@ export default function LMSScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
   title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginVertical: 10 },
-  tabBar: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#DDD' },
-  tabItem: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  tabItemActive: { backgroundColor: '#B71C1C' },
-  tabText: { fontWeight: 'bold', color: '#666' },
+  tabContainer: { marginBottom: 8 },
+  tabBarScroll: { paddingLeft: 16, paddingRight: 30, flexDirection: 'row', height: 40, alignItems: 'center' },
+  tabItem: { 
+    paddingHorizontal: 12, 
+    height: 32, 
+    borderRadius: 16, 
+    borderWidth: 1, 
+    borderColor: '#EEE', 
+    backgroundColor: '#FFF', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginRight: 6,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  tabItemActive: { backgroundColor: '#B71C1C', borderColor: '#B71C1C' },
+  tabText: { fontWeight: '600', color: '#666', fontSize: 12 },
   tabTextActive: { color: '#FFF' },
   scanBtn: { backgroundColor: '#1B5E20', margin: 16, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
   scanBtnText: { color: '#FFF', fontWeight: 'bold' },

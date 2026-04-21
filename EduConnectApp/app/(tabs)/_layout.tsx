@@ -18,7 +18,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#B71C1C', 
+        tabBarActiveTintColor: '#B71C1C',
         headerShown: true,
         tabBarButton: HapticTab,
         tabBarStyle: Platform.select({
@@ -42,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="lms"
         options={{
-          title: user?.role === 'teacher' ? '📜 Dạy Học' : '🎓 Học Tập',
+          title: user?.role === 'teacher' ? 'Dạy Học' : 'Học Tập',
           headerTitle: 'Lịch Học & Điểm Số',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
         }}
