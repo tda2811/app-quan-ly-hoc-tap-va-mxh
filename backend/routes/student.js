@@ -28,6 +28,7 @@ const upload = multer({ storage });
 /**
  * Danh sách Bài viết cho Feed (Tất cả hoặc theo nhóm)
  */
+
 router.get('/posts', async (req, res) => {
     const { group_id, user_id } = req.query;
     try {
@@ -70,7 +71,7 @@ router.get('/posts', async (req, res) => {
 router.post('/posts', upload.single('file'), async (req, res) => {
     const { user_id, group_id, content } = req.body;
     if (!user_id || !content) return res.status(400).json({ success: false, message: 'Thiếu thông tin Đăng bài' });
-    
+
     try {
         const [result] = await db.query(
             'INSERT INTO posts (user_id, group_id, content) VALUES (?, ?, ?)',
@@ -110,7 +111,7 @@ router.get('/grades', async (req, res) => {
             WHERE se.student_id = ?
             ORDER BY sem.start_date DESC, sub.name ASC
         `, [student_id]);
-        
+
         res.json({ success: true, data: grades });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy điểm số: ' + error.message });
@@ -167,7 +168,7 @@ router.get('/schedules', async (req, res) => {
             WHERE se.student_id = ?
             ORDER BY s.schedule_date DESC
         `, [student_id]);
-        
+
         res.json({ success: true, data: schedules });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy lịch học: ' + error.message });
@@ -191,7 +192,7 @@ router.get('/documents', async (req, res) => {
             WHERE se.student_id = ?
             ORDER BY d.created_at DESC
         `, [student_id]);
-        
+
         res.json({ success: true, data: docs });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy tài liệu: ' + error.message });
@@ -269,7 +270,7 @@ router.get('/attendances', async (req, res) => {
             WHERE a.student_id = ?
             ORDER BY s.schedule_date DESC, s.start_time DESC
         `, [student_id]);
-        
+
         res.json({ success: true, data: history });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy lịch sử điểm danh: ' + error.message });

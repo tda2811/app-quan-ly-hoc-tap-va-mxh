@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 /**
  * Xử lý Đăng ký tài khoản mới 
  */
+
 router.post('/register', async (req, res) => {
     const { email, password, role, fullName, studentCode, classId, majorId } = req.body;
 
@@ -84,11 +85,11 @@ router.post('/login', async (req, res) => {
         // --- DEBUG COMPARE ---
         console.log('Mật khẩu thô gửi lên:', password);
         console.log('Hash lưu trong DB:   ', user.password_hash);
-        
+
         // Hash thử mật khẩu vừa nhập để xem (Lưu ý: Bcrypt hash mỗi lần sẽ ra khác nhau do Salt, nhưng login vẫn khớp)
         const debugHash = await bcrypt.hash(password, 10);
         console.log('Hash của pass vừa nhập:', debugHash);
-        
+
         const isValid = await bcrypt.compare(password, user.password_hash);
         console.log('Kết quả so sánh Bcrypt:', isValid);
 

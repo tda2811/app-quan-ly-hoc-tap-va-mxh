@@ -3,8 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 
 // Tự động kiểm tra và thêm cột nếu thiếu cho bảng grades
-db.query("ALTER TABLE grades ADD COLUMN letter_grade VARCHAR(2) DEFAULT NULL").catch(err => {});
-db.query("ALTER TABLE grades ADD COLUMN gpa_score FLOAT DEFAULT NULL").catch(err => {});
+db.query("ALTER TABLE grades ADD COLUMN letter_grade VARCHAR(2) DEFAULT NULL").catch(err => { });
+db.query("ALTER TABLE grades ADD COLUMN gpa_score FLOAT DEFAULT NULL").catch(err => { });
 
 const multer = require('multer');
 const path = require('path');
@@ -103,6 +103,7 @@ router.get('/subjects', async (req, res) => {
 /**
  * Quản lý Nhóm Chat (Groups)
  */
+
 router.get('/groups', async (req, res) => {
     try {
         const [groups] = await db.query(`
@@ -164,9 +165,9 @@ router.post('/groups/:id/members', async (req, res) => {
     try {
         const [users] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
         if (users.length === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-        
+
         const userId = users[0].id;
-        
+
         const [exists] = await db.query('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?', [id, userId]);
         if (exists.length > 0) return res.status(400).json({ success: false, message: 'Người dùng đã có trong nhóm.' });
 
@@ -368,7 +369,7 @@ router.post('/documents', upload.single('file'), async (req, res) => {
 
     if (req.file) {
         file_url = `/uploads/${req.file.filename}`;
-        file_type = path.extname(req.file.originalname).substring(1); 
+        file_type = path.extname(req.file.originalname).substring(1);
     }
 
     try {
@@ -424,7 +425,7 @@ router.post('/exams', async (req, res) => {
             INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
             VALUES (?, ?, ?, 'exam', ?, ?, ?)
         `, [subject_id, firstTeacherId, room_name, schedule_date, start_time, end_time]);
-        
+
         const scheduleId = result.insertId;
 
         if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
@@ -505,7 +506,7 @@ router.post('/schedules', async (req, res) => {
             INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [subject_id, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time]);
-        
+
         const scheduleId = result.insertId;
 
         if (Array.isArray(teacher_ids) && teacher_ids.length > 0) {
@@ -588,7 +589,7 @@ router.post('/notifications/broadcast', async (req, res) => {
     const { title, message } = req.body;
     try {
         const [users] = await db.query('SELECT id FROM users WHERE status = "active"');
-        const tasks = users.map(u => 
+        const tasks = users.map(u =>
             db.query('INSERT INTO notifications (user_id, type, title, content) VALUES (?, "system", ?, ?)', [u.id, title, message])
         );
         await Promise.all(tasks);
@@ -680,7 +681,7 @@ router.get('/enrollments', async (req, res) => {
 // Cập nhật điểm cho một sinh viên (enrollment)
 router.put('/grades', async (req, res) => {
     const { enrollment_id, attendance_score, midterm_score, final_score } = req.body;
-    
+
     if (!enrollment_id) return res.status(400).json({ success: false, message: 'Thiếu enrollment_id' });
 
     try {

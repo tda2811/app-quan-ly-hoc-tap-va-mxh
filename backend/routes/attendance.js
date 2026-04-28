@@ -6,7 +6,7 @@ const ipRangeCheck = require('ip-range-check');
 
 // Danh sách dải IP hợp lệ của WiFi trường (Lấy mẫu từ TECH_NOTE)
 const SCHOOL_IP_RANGES = [
-    '192.168.1.0/24', 
+    '192.168.1.0/24',
     '10.0.0.0/16',
     '127.0.0.1' // cho localhost test
 ];
@@ -14,6 +14,7 @@ const SCHOOL_IP_RANGES = [
 /**
  * Lấy lịch dạy của Giáo Viên 
  */
+
 router.get('/schedules', async (req, res) => {
     const { teacher_id } = req.query;
     if (!teacher_id) return res.status(400).json({ success: false, message: 'Thiếu teacher_id' });
@@ -44,7 +45,7 @@ router.post('/schedules', async (req, res) => {
             INSERT INTO schedules (teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type || 'theory']);
-        
+
         // Đồng bộ vào bảng schedule_teachers
         await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES (?, ?)', [result.insertId, teacher_id]);
 
@@ -86,14 +87,14 @@ router.post('/check-in', async (req, res) => {
 
     try {
         // 1. Lấy IP để Check
-        const clientIp = requestIp.getClientIp(req); 
+        const clientIp = requestIp.getClientIp(req);
         const isInsideSchool = ipRangeCheck(clientIp, SCHOOL_IP_RANGES);
 
         // fallback test: Chấp nhận dải 192.168
         if (!isInsideSchool && !clientIp.startsWith('192.168')) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Bạn phải kết nối WiFi của trường (chung dải IP) để thực hiện điểm danh!' 
+            return res.status(403).json({
+                success: false,
+                message: 'Bạn phải kết nối WiFi của trường (chung dải IP) để thực hiện điểm danh!'
             });
         }
 

@@ -16,6 +16,7 @@ const pool = mysql.createPool({
 // Trả về dạng promise để dùng async / await phía Controller cho dễ
 const promisePool = pool.promise();
 
+
 // Chạy khởi tạo bảng cần thiết (VD bảng schedule_teachers bị thiếu trong schema)
 async function initTables() {
     try {

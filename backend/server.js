@@ -1,19 +1,19 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('http'); 
-const { Server } = require('socket.io'); 
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
-const db = require('./config/db'); 
+const db = require('./config/db');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
-const chatRoutes = require('./routes/chat'); 
-const attendanceRoutes = require('./routes/attendance'); 
-const studentRoutes = require('./routes/student'); 
+const chatRoutes = require('./routes/chat');
+const attendanceRoutes = require('./routes/attendance');
+const studentRoutes = require('./routes/student');
 
 const app = express();
-const server = http.createServer(app); 
-const io = new Server(server, { cors: { origin: '*' } }); 
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 
 const path = require('path');
 
@@ -25,9 +25,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Main Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/chat', chatRoutes); 
-app.use('/api/attendance', attendanceRoutes); 
-app.use('/api/student', studentRoutes); 
+app.use('/api/chat', chatRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/student', studentRoutes);
 
 // Test ping
 app.get('/api/ping', (req, res) => {
@@ -47,11 +47,11 @@ io.on('connection', (socket) => {
     socket.on('send_message', async (data) => {
         const { conversation_id, sender_id, content } = data;
         const roomId = String(conversation_id);
-        
+
         try {
             await db.query('INSERT INTO messages (conversation_id, sender_id, content) VALUES (?, ?, ?)', [conversation_id, sender_id, content]);
             await db.query('UPDATE conversations SET last_message_at = NOW() WHERE id = ?', [conversation_id]);
-            
+
             io.to(roomId).emit('receive_message', { ...data, created_at: new Date() });
         } catch (err) {
             console.error('Lỗi lưu tin nhắn Socket:', err);
@@ -63,7 +63,8 @@ io.on('connection', (socket) => {
     });
 });
 
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => { 
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running: http://localhost:${PORT}`);
 });
