@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Alert,
   ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput,
-  Keyboard, TouchableWithoutFeedback
+  Keyboard, TouchableWithoutFeedback, Pressable
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -459,6 +459,8 @@ export default function LMSScreen() {
       });
       if (res.data.success) {
         Alert.alert('Thành công', 'Điểm danh thành công!');
+        // Reload lịch học để SV thấy buổi vừa quét ngay
+        fetchSchedules();
       }
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra.');
@@ -527,8 +529,13 @@ export default function LMSScreen() {
   const studySchedules = filteredSchedules.filter(s => s.schedule_type !== 'exam');
   const examSchedules = filteredSchedules.filter(s => s.schedule_type === 'exam');
 
+  const ScreenWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    if (Platform.OS === 'web') return <View style={{ flex: 1 }}>{children}</View>;
+    return <TouchableWithoutFeedback onPress={Keyboard.dismiss}>{children}</TouchableWithoutFeedback>;
+  };
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <ScreenWrapper>
       <View style={styles.container}>
         <View style={styles.titleRow}>
           <IconSymbol name={user.role === 'teacher' ? 'list.bullet.indent' : 'calendar'} size={18} color="#B71C1C" style={{ marginRight: 8 }} />
@@ -768,7 +775,7 @@ export default function LMSScreen() {
                     value={semFilter}
                     onChangeText={setSemFilter}
                   />
-                  <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
                     {semesters.filter(s => s.name.toLowerCase().includes(semFilter.toLowerCase())).map(s => (
                       <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSemId(s.id); setSemDropdownVisible(false); setSemFilter(''); }}>
                         <Text>{s.name}</Text>
@@ -790,7 +797,7 @@ export default function LMSScreen() {
                     value={subFilter}
                     onChangeText={setSubFilter}
                   />
-                  <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
                     {subjectsList.filter(s => s.name.toLowerCase().includes(subFilter.toLowerCase())).map(s => (
                       <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(s.id); setSubjectDropdownVisible(false); setSubFilter(''); }}>
                         <Text>{s.name}</Text>
@@ -1048,7 +1055,7 @@ export default function LMSScreen() {
 
         {/* Add Schedule Modal for Teacher */}
         <Modal visible={addModalVisible} animationType="slide" transparent={true}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          {Platform.OS === 'web' ? (
             <View style={styles.modalBackDrop}>
               <View style={styles.modalContent}>
                 <Text style={styles.label}>Môn Học (*):</Text>
@@ -1066,91 +1073,81 @@ export default function LMSScreen() {
                       value={subFilter}
                       onChangeText={setSubFilter}
                     />
-                    <ScrollView
-                      nestedScrollEnabled
-                      style={{ maxHeight: 120 }}
-                    >
-                      {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subFilter.toLowerCase())).map((item: any) => (
-                        <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSelectedSubId(item.id); setSubjectDropdownVisible(false); }}>
-                          <Text style={{ fontSize: 14 }}>{item.name}</Text>
-                        </TouchableOpacity>
-                      ))}
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 120 }}>
+                      {subjectsList
+                        .filter((s: any) => s.name.toLowerCase().includes(subFilter.toLowerCase()))
+                        .map((item: any) => (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                              setSelectedSubId(item.id);
+                              setSubjectDropdownVisible(false);
+                            }}
+                          >
+                            <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                          </TouchableOpacity>
+                        ))}
                     </ScrollView>
                   </View>
                 )}
 
-                <TextInput style={styles.inputNarrow} placeholder={viewMode === 'exam' ? "Phòng thi (VD: A1.101)" : "Phòng học (VD: A1.101)"} value={roomName} onChangeText={setRoomName} />
+                <TextInput
+                  style={styles.inputNarrow}
+                  placeholder={viewMode === 'exam' ? 'Phòng thi (VD: A1.101)' : 'Phòng học (VD: A1.101)'}
+                  value={roomName}
+                  onChangeText={setRoomName}
+                />
 
-                {/* Date Selection */}
                 <Text style={styles.label}>{viewMode === 'exam' ? 'Ngày thi (*):' : 'Ngày giảng dạy (*):'}</Text>
-                {Platform.OS === 'web' ? (
-                  <TextInput
-                    style={styles.inputNarrow}
-                    {...({ type: 'date' } as any)}
-                    value={schDate.toISOString().split('T')[0]}
-                    onChangeText={(v: any) => setSchDate(new Date(v))}
-                  />
-                ) : (
-                  <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowDatePicker(true)}>
-                    <View style={styles.metaRow}>
-                      <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
-                      <Text>{schDate.toLocaleDateString('vi-VN')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                {showDatePicker && Platform.OS !== 'web' && (
-                  <DateTimePicker
-                    value={schDate} mode="date" display="default"
-                    onChange={(e, d) => { setShowDatePicker(false); if (d) setSchDate(d); }}
-                  />
-                )}
+                <TextInput
+                  style={styles.inputNarrow}
+                  {...({ type: 'date' } as any)}
+                  value={schDate.toISOString().split('T')[0]}
+                  onChangeText={(v: any) => setSchDate(new Date(v))}
+                />
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <View style={{ flex: 0.48 }}>
                     <Text style={styles.label}>Bắt đầu:</Text>
-                    {Platform.OS === 'web' ? (
-                      <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={sTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setSTime(nd); }} />
-                    ) : (
-                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
-                        <View style={styles.metaRow}>
-                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
-                          <Text>{sTime.toTimeString().substring(0, 5)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    {showSTimePicker && Platform.OS !== 'web' && (
-                      <DateTimePicker value={sTime} mode="time" display="default" onChange={(e, d) => { setShowSTimePicker(false); if (d) setSTime(d); }} />
-                    )}
+                    <TextInput
+                      style={styles.inputNarrow}
+                      {...({ type: 'time' } as any)}
+                      value={sTime.toTimeString().substring(0, 5)}
+                      onChangeText={(v: any) => {
+                        const nd = new Date();
+                        const [h, m] = v.split(':');
+                        nd.setHours(parseInt(h), parseInt(m));
+                        setSTime(nd);
+                      }}
+                    />
                   </View>
                   <View style={{ flex: 0.48 }}>
                     <Text style={styles.label}>Kết thúc:</Text>
-                    {Platform.OS === 'web' ? (
-                      <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={eTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setETime(nd); }} />
-                    ) : (
-                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
-                        <View style={styles.metaRow}>
-                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
-                          <Text>{eTime.toTimeString().substring(0, 5)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    {showETimePicker && Platform.OS !== 'web' && (
-                      <DateTimePicker value={eTime} mode="time" display="default" onChange={(e, d) => { setShowETimePicker(false); if (d) setETime(d); }} />
-                    )}
+                    <TextInput
+                      style={styles.inputNarrow}
+                      {...({ type: 'time' } as any)}
+                      value={eTime.toTimeString().substring(0, 5)}
+                      onChangeText={(v: any) => {
+                        const nd = new Date();
+                        const [h, m] = v.split(':');
+                        nd.setHours(parseInt(h), parseInt(m));
+                        setETime(nd);
+                      }}
+                    />
                   </View>
                 </View>
 
                 <View style={{ flexDirection: 'row', marginBottom: 20 }}>
                   <TouchableOpacity
                     style={[styles.miniBtn, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && styles.miniBtnActive]}
-                    onPress={() => viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory')}
+                    onPress={() => (viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory'))}
                   >
                     <Text style={[styles.miniBtnText, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && { color: '#FFF' }]}>Lý Thuyết</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.miniBtn, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && styles.miniBtnActive]}
-                    onPress={() => viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice')}
+                    onPress={() => (viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice'))}
                   >
                     <Text style={[styles.miniBtnText, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && { color: '#FFF' }]}>
                       {viewMode === 'exam' ? 'Tự Luận' : 'Thực Hành'}
@@ -1159,19 +1156,170 @@ export default function LMSScreen() {
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => { setAddModalVisible(false); resetAddModal(); }}><Text style={{ color: '#333' }}>Hủy</Text></TouchableOpacity>
-                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B5E20' }]} onPress={handleAddSchedule}><Text style={{ color: '#FFF', fontWeight: 'bold' }}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text></TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: '#CCC' }]}
+                    onPress={() => {
+                      setAddModalVisible(false);
+                      resetAddModal();
+                    }}
+                  >
+                    <Text style={{ color: '#333' }}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B5E20' }]} onPress={handleAddSchedule}>
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
-          </TouchableWithoutFeedback>
+          ) : (
+            <View style={styles.modalBackDrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
+              <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                  <Text style={styles.label}>Môn Học (*):</Text>
+                  <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                    <Text style={{ color: selectedSubId ? '#000' : '#888' }}>
+                      {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {subjectDropdownVisible && (
+                    <View style={styles.dropdownOverlay}>
+                      <TextInput
+                        style={styles.dropdownSearchInside}
+                        placeholder="Tìm môn học..."
+                        value={subFilter}
+                        onChangeText={setSubFilter}
+                      />
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 120 }}>
+                        {subjectsList
+                          .filter((s: any) => s.name.toLowerCase().includes(subFilter.toLowerCase()))
+                          .map((item: any) => (
+                            <TouchableOpacity
+                              key={item.id}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedSubId(item.id);
+                                setSubjectDropdownVisible(false);
+                              }}
+                            >
+                              <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  <TextInput
+                    style={styles.inputNarrow}
+                    placeholder={viewMode === 'exam' ? 'Phòng thi (VD: A1.101)' : 'Phòng học (VD: A1.101)'}
+                    value={roomName}
+                    onChangeText={setRoomName}
+                  />
+
+                  <Text style={styles.label}>{viewMode === 'exam' ? 'Ngày thi (*):' : 'Ngày giảng dạy (*):'}</Text>
+                  <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowDatePicker(true)}>
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
+                      <Text>{schDate.toLocaleDateString('vi-VN')}</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={schDate}
+                      mode="date"
+                      display="default"
+                      onChange={(e, d) => {
+                        setShowDatePicker(false);
+                        if (d) setSchDate(d);
+                      }}
+                    />
+                  )}
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 0.48 }}>
+                      <Text style={styles.label}>Bắt đầu:</Text>
+                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
+                        <View style={styles.metaRow}>
+                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                          <Text>{sTime.toTimeString().substring(0, 5)}</Text>
+                        </View>
+                      </TouchableOpacity>
+                      {showSTimePicker && (
+                        <DateTimePicker
+                          value={sTime}
+                          mode="time"
+                          display="default"
+                          onChange={(e, d) => {
+                            setShowSTimePicker(false);
+                            if (d) setSTime(d);
+                          }}
+                        />
+                      )}
+                    </View>
+                    <View style={{ flex: 0.48 }}>
+                      <Text style={styles.label}>Kết thúc:</Text>
+                      <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
+                        <View style={styles.metaRow}>
+                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                          <Text>{eTime.toTimeString().substring(0, 5)}</Text>
+                        </View>
+                      </TouchableOpacity>
+                      {showETimePicker && (
+                        <DateTimePicker
+                          value={eTime}
+                          mode="time"
+                          display="default"
+                          onChange={(e, d) => {
+                            setShowETimePicker(false);
+                            if (d) setETime(d);
+                          }}
+                        />
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+                    <TouchableOpacity
+                      style={[styles.miniBtn, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && styles.miniBtnActive]}
+                      onPress={() => (viewMode === 'exam' ? setExamSubType('Lý Thuyết') : setSchType('theory'))}
+                    >
+                      <Text style={[styles.miniBtnText, (schType === 'theory' || (viewMode === 'exam' && examSubType === 'Lý Thuyết')) && { color: '#FFF' }]}>Lý Thuyết</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.miniBtn, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && styles.miniBtnActive]}
+                      onPress={() => (viewMode === 'exam' ? setExamSubType('Tự Luận') : setSchType('practice'))}
+                    >
+                      <Text style={[styles.miniBtnText, (schType === 'practice' || (viewMode === 'exam' && examSubType === 'Tự Luận')) && { color: '#FFF' }]}>
+                        {viewMode === 'exam' ? 'Tự Luận' : 'Thực Hành'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <TouchableOpacity
+                      style={[styles.modalBtn, { backgroundColor: '#CCC' }]}
+                      onPress={() => {
+                        setAddModalVisible(false);
+                        resetAddModal();
+                      }}
+                    >
+                      <Text style={{ color: '#333' }}>Hủy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B5E20' }]} onPress={handleAddSchedule}>
+                      <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text>
+                    </TouchableOpacity>
+                  </View>
+              </View>
+            </View>
+          )}
         </Modal>
 
         {/* Grade Edit Modal */}
         <Modal visible={gradeModalVisible} animationType="fade" transparent={true}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalBackDrop}>
-              <View style={styles.modalContent}>
+          <View style={styles.modalBackDrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
                 <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 15, textAlign: 'center' }}>NHẬP ĐIỂM SINH VIÊN</Text>
                 <Text style={{ marginBottom: 2, color: '#666' }}>Sinh viên: <Text style={{ fontWeight: 'bold', color: '#000' }}>{selectedEnrollment?.full_name}</Text></Text>
                 <Text style={{ marginBottom: 10, fontSize: 11, color: '#1B5E20' }}>Số buổi đi học thực tế: {selectedEnrollment?.present_count || 0} buổi</Text>
@@ -1189,9 +1337,8 @@ export default function LMSScreen() {
                   <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={() => setGradeModalVisible(false)}><Text>Hủy</Text></TouchableOpacity>
                   <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#B71C1C' }]} onPress={handleUpdateGrade}><Text style={{ color: '#FFF', fontWeight: 'bold' }}>Lưu Điểm</Text></TouchableOpacity>
                 </View>
-              </View>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         </Modal>
 
         {user.role === 'teacher' && (viewMode === 'study' || viewMode === 'exam') && (
@@ -1207,7 +1354,7 @@ export default function LMSScreen() {
           </TouchableOpacity>
         )}
       </View>
-    </TouchableWithoutFeedback>
+    </ScreenWrapper>
   );
 }
 

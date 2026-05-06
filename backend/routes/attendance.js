@@ -110,6 +110,29 @@ router.post('/check-in', async (req, res) => {
             [schedule_id, student_id, clientIp]
         );
 
+        // 4. Auto-enroll: Sau khi quét, đảm bảo SV thấy lịch môn này (không đổi DB)
+        // Lấy subject_id + schedule_date từ schedule
+        const [[schedule]] = await db.query(
+            'SELECT subject_id, schedule_date FROM schedules WHERE id = ?',
+            [schedule_id]
+        );
+
+        if (schedule?.subject_id && schedule?.schedule_date) {
+            // Tìm học kỳ chứa schedule_date (nếu có)
+            const [[semester]] = await db.query(
+                'SELECT id FROM semesters WHERE ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1',
+                [schedule.schedule_date]
+            );
+
+            if (semester?.id) {
+                await db.query(
+                    `INSERT IGNORE INTO student_enrollments (student_id, subject_id, semester_id, status)
+                     VALUES (?, ?, ?, 'studying')`,
+                    [student_id, schedule.subject_id, semester.id]
+                );
+            }
+        }
+
         res.json({ success: true, message: 'Điểm danh thành công!' });
     } catch (error) {
         if (error.code === 'ER_DUP_ENTRY') {
