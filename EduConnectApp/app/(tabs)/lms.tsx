@@ -502,12 +502,18 @@ export default function LMSScreen() {
   const renderDocItem = ({ item }: { item: DocumentItem }) => (
     <View style={styles.docCard}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={styles.docTitle}>📄 {item.title}</Text>
+        <View style={styles.metaRow}>
+          <IconSymbol name="doc.text.fill" size={16} color="#1B5E20" style={styles.metaIcon} />
+          <Text style={styles.docTitle}>{item.title}</Text>
+        </View>
         <Text style={styles.docTypeBadge}>{item.file_type.toUpperCase()}</Text>
       </View>
       <Text style={styles.docDesc}>Môn: {item.subject_name}</Text>
       <TouchableOpacity style={styles.viewDocBtn} onPress={() => handleViewFile(item.file_url)}>
-        <Text style={styles.viewDocText}>📄 Xem / Tải Xuống Tài Liệu</Text>
+        <View style={styles.metaRow}>
+          <IconSymbol name="doc.text.fill" size={16} color="#1976D2" style={styles.metaIcon} />
+          <Text style={styles.viewDocText}>Xem / Tải Xuống Tài Liệu</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -522,7 +528,10 @@ export default function LMSScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <Text style={styles.title}>{user.role === 'teacher' ? '📜 Quản Lý Giảng Dạy' : '📅 Quản Lý Học Tập'}</Text>
+        <View style={styles.titleRow}>
+          <IconSymbol name={user.role === 'teacher' ? 'list.bullet.indent' : 'calendar'} size={18} color="#B71C1C" style={{ marginRight: 8 }} />
+          <Text style={styles.title}>{user.role === 'teacher' ? 'Quản Lý Giảng Dạy' : 'Quản Lý Học Tập'}</Text>
+        </View>
 
         <View style={styles.tabContainer}>
           <ScrollView
@@ -531,21 +540,36 @@ export default function LMSScreen() {
             contentContainerStyle={styles.tabBarScroll}
           >
             <TouchableOpacity style={[styles.tabItem, viewMode === 'study' && styles.tabItemActive]} onPress={() => setViewMode('study')}>
-              <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+              <View style={styles.tabInner}>
+                <IconSymbol name="calendar" size={14} color={viewMode === 'study' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                <Text style={[styles.tabText, viewMode === 'study' && styles.tabTextActive]}>Lịch Học</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, viewMode === 'exam' && styles.tabItemActive]} onPress={() => setViewMode('exam')}>
-              <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+              <View style={styles.tabInner}>
+                <IconSymbol name="calendar" size={14} color={viewMode === 'exam' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                <Text style={[styles.tabText, viewMode === 'exam' && styles.tabTextActive]}>Lịch Thi</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, viewMode === 'documents' && styles.tabItemActive]} onPress={() => { setViewMode('documents'); fetchDocuments(); }}>
-              <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+              <View style={styles.tabInner}>
+                <IconSymbol name="doc.text" size={14} color={viewMode === 'documents' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                <Text style={[styles.tabText, viewMode === 'documents' && styles.tabTextActive]}>Tài Liệu</Text>
+              </View>
             </TouchableOpacity>
             {user.role === 'student' && (
               <>
                 <TouchableOpacity style={[styles.tabItem, viewMode === 'attendance' && styles.tabItemActive]} onPress={() => { setViewMode('attendance'); fetchAttendances(); }}>
-                  <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
+                  <View style={styles.tabInner}>
+                    <IconSymbol name="clock" size={14} color={viewMode === 'attendance' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                    <Text style={[styles.tabText, viewMode === 'attendance' && styles.tabTextActive]}>Lịch Sử</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.tabItem, viewMode === 'grades' && styles.tabItemActive]} onPress={() => { setViewMode('grades'); fetchGrades(); }}>
-                  <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
+                  <View style={styles.tabInner}>
+                    <IconSymbol name="chart.bar" size={14} color={viewMode === 'grades' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                    <Text style={[styles.tabText, viewMode === 'grades' && styles.tabTextActive]}>Bảng Điểm</Text>
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -555,13 +579,19 @@ export default function LMSScreen() {
                   style={[styles.tabItem, viewMode === 'teacher_history' && styles.tabItemActive]}
                   onPress={() => { setSelectedSchedule(null); setTeacherHistorySchedule(null); setViewMode('teacher_history'); }}
                 >
-                  <Text style={[styles.tabText, viewMode === 'teacher_history' && styles.tabTextActive]}>Lịch Sử</Text>
+                  <View style={styles.tabInner}>
+                    <IconSymbol name="clock" size={14} color={viewMode === 'teacher_history' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                    <Text style={[styles.tabText, viewMode === 'teacher_history' && styles.tabTextActive]}>Lịch Sử</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]}
                   onPress={() => { setSelectedSchedule(null); setTeacherHistorySchedule(null); setViewMode('manage_grades'); }}
                 >
-                  <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
+                  <View style={styles.tabInner}>
+                    <IconSymbol name="chart.bar" size={14} color={viewMode === 'manage_grades' ? '#FFF' : '#666'} style={{ marginRight: 6 }} />
+                    <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -588,7 +618,7 @@ export default function LMSScreen() {
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="🔍 Tìm theo môn hoặc ngày (YYYY-MM-DD)..."
+              placeholder="Tìm theo môn hoặc ngày (YYYY-MM-DD)..."
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -640,9 +670,17 @@ export default function LMSScreen() {
               <View style={styles.attendanceCard}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={styles.subjName}>{item.subject_name}</Text>
-                  <Text style={[styles.statusBadge, { color: item.status === 'present' ? '#2E7D32' : '#D32F2F' }]}>
-                    {item.status === 'present' ? '✓ CÓ MẶT' : '✕ VẮNG'}
-                  </Text>
+                  <View style={styles.statusRow}>
+                    <IconSymbol
+                      name={item.status === 'present' ? 'checkmark.circle.fill' : 'xmark.circle.fill'}
+                      size={14}
+                      color={item.status === 'present' ? '#2E7D32' : '#D32F2F'}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.statusBadge, { color: item.status === 'present' ? '#2E7D32' : '#D32F2F' }]}>
+                      {item.status === 'present' ? 'CÓ MẶT' : 'VẮNG'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.metaRow}>
                   <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
@@ -686,8 +724,14 @@ export default function LMSScreen() {
                         {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
                       </Text>
                     </View>
-                    <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
-                    <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
+                      <Text style={styles.cardText}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                      <Text style={styles.cardText}>Giờ: {item.start_time} - {item.end_time}</Text>
+                    </View>
                   </TouchableOpacity>
 
                   {isExpanded && (
@@ -695,7 +739,10 @@ export default function LMSScreen() {
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -4 }}>
                         <Text style={{ fontWeight: 'bold' }}>Thống kê điểm danh ({attendees.length})</Text>
                         <TouchableOpacity onPress={() => fetchAttendees(item.id)}>
-                          <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>🔄 Tải lại</Text>
+                          <View style={styles.metaRow}>
+                            <IconSymbol name="arrow.clockwise" size={14} color="#1976D2" style={styles.metaIcon} />
+                            <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>Tải lại</Text>
+                          </View>
                         </TouchableOpacity>
                       </View>
 
@@ -726,7 +773,10 @@ export default function LMSScreen() {
                               </View>
                             </View>
                             <View style={{ alignItems: 'flex-end' }}>
-                              <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>✓ ĐÃ VÀO</Text>
+                              <View style={styles.metaRow}>
+                                <IconSymbol name="checkmark.circle.fill" size={14} color="#1B5E20" style={styles.metaIcon} />
+                                <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>ĐÃ VÀO</Text>
+                              </View>
                               <Text style={{ fontSize: 10, color: '#999' }}>
                                 {a.scanned_at
                                   ? new Date(a.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -916,7 +966,10 @@ export default function LMSScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>Thống kê điểm danh ({attendees.length})</Text>
                   <TouchableOpacity onPress={() => selectedSchedule && fetchAttendees(selectedSchedule.id)}>
-                    <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>🔄 Tải lại</Text>
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="arrow.clockwise" size={14} color="#1976D2" style={styles.metaIcon} />
+                      <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>Tải lại</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
@@ -933,7 +986,10 @@ export default function LMSScreen() {
                           <Text style={{ fontSize: 11, color: '#666' }}>{item.email}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>✓ ĐÃ VÀO</Text>
+                          <View style={styles.metaRow}>
+                            <IconSymbol name="checkmark.circle.fill" size={14} color="#1B5E20" style={styles.metaIcon} />
+                            <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>ĐÃ VÀO</Text>
+                          </View>
                           <Text style={{ fontSize: 10, color: '#999' }}>{new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
                         </View>
                       </View>
@@ -999,7 +1055,10 @@ export default function LMSScreen() {
                   />
                 ) : (
                   <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowDatePicker(true)}>
-                    <Text>📅 {schDate.toLocaleDateString('vi-VN')}</Text>
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
+                      <Text>{schDate.toLocaleDateString('vi-VN')}</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -1017,7 +1076,10 @@ export default function LMSScreen() {
                       <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={sTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setSTime(nd); }} />
                     ) : (
                       <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowSTimePicker(true)}>
-                        <Text>⏰ {sTime.toTimeString().substring(0, 5)}</Text>
+                        <View style={styles.metaRow}>
+                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                          <Text>{sTime.toTimeString().substring(0, 5)}</Text>
+                        </View>
                       </TouchableOpacity>
                     )}
                     {showSTimePicker && Platform.OS !== 'web' && (
@@ -1030,7 +1092,10 @@ export default function LMSScreen() {
                       <TextInput style={styles.inputNarrow} {...({ type: 'time' } as any)} value={eTime.toTimeString().substring(0, 5)} onChangeText={(v: any) => { const nd = new Date(); const [h, m] = v.split(':'); nd.setHours(parseInt(h), parseInt(m)); setETime(nd); }} />
                     ) : (
                       <TouchableOpacity style={styles.inputNarrow} onPress={() => setShowETimePicker(true)}>
-                        <Text>⏰ {eTime.toTimeString().substring(0, 5)}</Text>
+                        <View style={styles.metaRow}>
+                          <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                          <Text>{eTime.toTimeString().substring(0, 5)}</Text>
+                        </View>
                       </TouchableOpacity>
                     )}
                     {showETimePicker && Platform.OS !== 'web' && (
@@ -1113,7 +1178,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
   list: { flex: 1 },
   listContent: { padding: 16, paddingBottom: 140 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginVertical: 10 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center' },
   tabContainer: { marginBottom: 8 },
   tabBarScroll: { paddingLeft: 16, paddingRight: 30, flexDirection: 'row', height: 40, alignItems: 'center' },
   tabItem: {
@@ -1135,6 +1201,7 @@ const styles = StyleSheet.create({
   tabItemActive: { backgroundColor: '#B71C1C', borderColor: '#B71C1C' },
   tabText: { fontWeight: '600', color: '#666', fontSize: 12 },
   tabTextActive: { color: '#FFF' },
+  tabInner: { flexDirection: 'row', alignItems: 'center' },
   scanBtn: { backgroundColor: '#1B5E20', margin: 16, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
   scanBtnContent: { flexDirection: 'row', alignItems: 'center' },
   scanBtnText: { color: '#FFF', fontWeight: 'bold' },
@@ -1177,6 +1244,7 @@ const styles = StyleSheet.create({
   fabText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   attendanceCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#2E7D32', elevation: 1 },
   statusBadge: { fontSize: 11, fontWeight: 'bold' },
+  statusRow: { flexDirection: 'row', alignItems: 'center' },
   dropdownSearch: { backgroundColor: '#F9F9F9', borderRadius: 8, borderWidth: 1, borderColor: '#EEE', paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10, fontSize: 13 },
   inputPicker: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 12, backgroundColor: '#F9F9F9', justifyContent: 'center' },
   dropdownOverlay: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, backgroundColor: '#FFF', marginBottom: 12, overflow: 'hidden' },
