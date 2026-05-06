@@ -118,19 +118,31 @@ router.post('/check-in', async (req, res) => {
         );
 
         if (schedule?.subject_id && schedule?.schedule_date) {
-            // Tìm học kỳ chứa schedule_date (nếu có)
-            const [[semester]] = await db.query(
+            // Tìm học kỳ chứa schedule_date
+            let [[semester]] = await db.query(
                 'SELECT id FROM semesters WHERE ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1',
                 [schedule.schedule_date]
             );
 
-            if (semester?.id) {
-                await db.query(
-                    `INSERT IGNORE INTO student_enrollments (student_id, subject_id, semester_id, status)
-                     VALUES (?, ?, ?, 'studying')`,
-                    [student_id, schedule.subject_id, semester.id]
-                );
+            // Fallback 1: lấy học kỳ gần nhất nếu không match theo ngày
+            if (!semester?.id) {
+                [[semester]] = await db.query('SELECT id FROM semesters ORDER BY start_date DESC LIMIT 1');
             }
+
+            // Fallback 2: nếu chưa có học kỳ nào, tạo 1 học kỳ mặc định (không đổi thiết kế DB)
+            if (!semester?.id) {
+                const [insertSem] = await db.query(
+                    `INSERT INTO semesters (name, start_date, end_date)
+                     VALUES ('Học kỳ mặc định', '2000-01-01', '2099-12-31')`
+                );
+                semester = { id: insertSem.insertId };
+            }
+
+            await db.query(
+                `INSERT IGNORE INTO student_enrollments (student_id, subject_id, semester_id, status)
+                 VALUES (?, ?, ?, 'studying')`,
+                [student_id, schedule.subject_id, semester.id]
+            );
         }
 
         res.json({ success: true, message: 'Điểm danh thành công!' });

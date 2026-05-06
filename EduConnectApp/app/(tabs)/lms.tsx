@@ -460,6 +460,7 @@ export default function LMSScreen() {
       if (res.data.success) {
         Alert.alert('Thành công', 'Điểm danh thành công!');
         // Reload lịch học để SV thấy buổi vừa quét ngay
+        setViewMode('study');
         fetchSchedules();
       }
     } catch (error: any) {
