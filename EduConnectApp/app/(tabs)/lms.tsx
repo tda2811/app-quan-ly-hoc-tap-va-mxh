@@ -12,6 +12,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { API_URL } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 interface Schedule {
   id: number;
@@ -53,7 +54,7 @@ export default function LMSScreen() {
 
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents' | 'attendance' | 'manage_grades'>('study');
+  const [viewMode, setViewMode] = useState<'study' | 'exam' | 'grades' | 'documents' | 'attendance' | 'manage_grades' | 'teacher_history'>('study');
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -91,6 +92,7 @@ export default function LMSScreen() {
   const [showETimePicker, setShowETimePicker] = useState(false);
 
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+  const [teacherHistorySchedule, setTeacherHistorySchedule] = useState<Schedule | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -117,7 +119,12 @@ export default function LMSScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (viewMode === 'study' || viewMode === 'exam') await fetchSchedules();
+      if (viewMode === 'study' || viewMode === 'exam' || viewMode === 'teacher_history') {
+        await fetchSchedules();
+        if (viewMode === 'teacher_history' && teacherHistorySchedule) {
+          await fetchAttendees(teacherHistorySchedule.id);
+        }
+      }
       else if (viewMode === 'grades') await fetchGrades(true);
       else if (viewMode === 'documents') await fetchDocuments(true);
       else if (viewMode === 'attendance') await fetchAttendances(true);
@@ -279,10 +286,16 @@ export default function LMSScreen() {
   useEffect(() => {
     if (selectedSchedule) {
       fetchAttendees(selectedSchedule.id);
-    } else {
-      setAttendees([]);
+      return;
     }
-  }, [selectedSchedule]);
+
+    if (viewMode === 'teacher_history' && teacherHistorySchedule) {
+      fetchAttendees(teacherHistorySchedule.id);
+      return;
+    }
+
+    setAttendees([]);
+  }, [selectedSchedule, teacherHistorySchedule, viewMode]);
 
   const pickDocument = async () => {
     try {
@@ -468,9 +481,20 @@ export default function LMSScreen() {
           {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
         </Text>
       </View>
-      <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
-      <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
-      {item.teacher_email && <Text style={styles.cardText}>👨‍🏫 {item.teacher_email}</Text>}
+      <View style={styles.metaRow}>
+        <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
+        <Text style={styles.cardText}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+      </View>
+      <View style={styles.metaRow}>
+        <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+        <Text style={styles.cardText}>Giờ: {item.start_time} - {item.end_time}</Text>
+      </View>
+      {item.teacher_email && (
+        <View style={styles.metaRow}>
+          <IconSymbol name="person.fill" size={14} color="#666" style={styles.metaIcon} />
+          <Text style={styles.cardText}>{item.teacher_email}</Text>
+        </View>
+      )}
       {user.role === 'teacher' && <Text style={{ fontSize: 10, color: '#1B5E20', marginTop: 4, fontStyle: 'italic' }}>Nhấn giữ để sửa</Text>}
     </TouchableOpacity>
   );
@@ -526,9 +550,20 @@ export default function LMSScreen() {
               </>
             )}
             {user.role === 'teacher' && (
-              <TouchableOpacity style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]} onPress={() => { setViewMode('manage_grades'); }}>
-                <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.tabItem, viewMode === 'teacher_history' && styles.tabItemActive]}
+                  onPress={() => { setSelectedSchedule(null); setTeacherHistorySchedule(null); setViewMode('teacher_history'); }}
+                >
+                  <Text style={[styles.tabText, viewMode === 'teacher_history' && styles.tabTextActive]}>Lịch Sử</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tabItem, viewMode === 'manage_grades' && styles.tabItemActive]}
+                  onPress={() => { setSelectedSchedule(null); setTeacherHistorySchedule(null); setViewMode('manage_grades'); }}
+                >
+                  <Text style={[styles.tabText, viewMode === 'manage_grades' && styles.tabTextActive]}>Điểm Số</Text>
+                </TouchableOpacity>
+              </>
             )}
           </ScrollView>
         </View>
@@ -542,11 +577,14 @@ export default function LMSScreen() {
               setShowScanner(true);
             }}
           >
-            <Text style={styles.scanBtnText}>📷 QUÉT QR ĐIỂM DANH</Text>
+            <View style={styles.scanBtnContent}>
+              <IconSymbol name="qrcode.viewfinder" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.scanBtnText}>QUÉT QR ĐIỂM DANH</Text>
+            </View>
           </TouchableOpacity>
         )}
 
-        {(viewMode === 'study' || viewMode === 'exam') && (
+        {(viewMode === 'study' || viewMode === 'exam' || viewMode === 'teacher_history') && (
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
@@ -562,7 +600,8 @@ export default function LMSScreen() {
             data={studySchedules}
             keyExtractor={s => s.id.toString()}
             renderItem={renderItem}
-            contentContainerStyle={{ padding: 16 }}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
             refreshing={refreshing}
             onRefresh={onRefresh}
             ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch học.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
@@ -572,7 +611,8 @@ export default function LMSScreen() {
             data={examSchedules}
             keyExtractor={s => s.id.toString()}
             renderItem={renderItem}
-            contentContainerStyle={{ padding: 16 }}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
             refreshing={refreshing}
             onRefresh={onRefresh}
             ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch thi.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
@@ -582,7 +622,8 @@ export default function LMSScreen() {
             data={documents}
             keyExtractor={d => d.id.toString()}
             renderItem={renderDocItem}
-            contentContainerStyle={{ padding: 16 }}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
             refreshing={refreshing}
             onRefresh={onRefresh}
             ListEmptyComponent={!loadingDocs ? <Text style={styles.emptyText}>Chưa có tài liệu.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
@@ -593,6 +634,7 @@ export default function LMSScreen() {
             keyExtractor={a => a.id.toString()}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            style={styles.list}
             ListEmptyComponent={!loadingAttendances ? <Text style={styles.emptyText}>Chưa có lịch sử điểm danh.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
             renderItem={({ item }) => (
               <View style={styles.attendanceCard}>
@@ -602,11 +644,104 @@ export default function LMSScreen() {
                     {item.status === 'present' ? '✓ CÓ MẶT' : '✕ VẮNG'}
                   </Text>
                 </View>
-                <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
-                <Text style={styles.cardText}>⏰ Thời gian: {new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
-                <Text style={styles.cardText}>📍 IP: {item.network_ip || 'N/A'}</Text>
+                <View style={styles.metaRow}>
+                  <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
+                  <Text style={styles.cardText}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
+                  <Text style={styles.cardText}>
+                    Thời gian: {new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <IconSymbol name="mappin.and.ellipse" size={14} color="#666" style={styles.metaIcon} />
+                  <Text style={styles.cardText}>IP: {item.network_ip || 'N/A'}</Text>
+                </View>
               </View>
-            )} contentContainerStyle={{ padding: 16 }} />
+            )}
+            contentContainerStyle={styles.listContent}
+          />
+        ) : viewMode === 'teacher_history' ? (
+          <FlatList
+            data={filteredSchedules}
+            keyExtractor={s => s.id.toString()}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch để xem lịch sử.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
+            renderItem={({ item }: { item: Schedule }) => {
+              const isExpanded = teacherHistorySchedule?.id === item.id;
+
+              return (
+                <View>
+                  <TouchableOpacity
+                    style={styles.card}
+                    onPress={() => setTeacherHistorySchedule(prev => (prev?.id === item.id ? null : item))}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.subjName}>{item.subject_name}</Text>
+                      <Text style={[styles.roomBadge, item.schedule_type === 'exam' && { backgroundColor: '#FFEBEE', color: '#D32F2F' }]}>
+                        {item.schedule_type === 'exam' ? 'P. THI ' : 'P. HỌC '} {item.room_name}
+                      </Text>
+                    </View>
+                    <Text style={styles.cardText}>📅 Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
+                    <Text style={styles.cardText}>⏰ Giờ: {item.start_time} - {item.end_time}</Text>
+                  </TouchableOpacity>
+
+                  {isExpanded && (
+                    <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -4 }}>
+                        <Text style={{ fontWeight: 'bold' }}>Thống kê điểm danh ({attendees.length})</Text>
+                        <TouchableOpacity onPress={() => fetchAttendees(item.id)}>
+                          <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>🔄 Tải lại</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {loadingAttendees ? (
+                        <ActivityIndicator color="#B71C1C" style={{ marginTop: 10 }} />
+                      ) : attendees.length === 0 ? (
+                        <Text style={{ textAlign: 'center', color: '#999', marginVertical: 12 }}>
+                          Chưa có sinh viên nào điểm danh buổi này.
+                        </Text>
+                      ) : (
+                        attendees.map((a: any) => (
+                          <View
+                            key={a.id}
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              paddingVertical: 10,
+                              borderBottomWidth: 1,
+                              borderBottomColor: '#F0F0F0',
+                            }}
+                          >
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                              <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{a.full_name}</Text>
+                              <Text style={{ fontSize: 11, color: '#666' }}>{a.email}</Text>
+                              <View style={[styles.metaRow, { marginTop: 2 }]}>
+                                <IconSymbol name="mappin.and.ellipse" size={12} color="#666" style={styles.metaIcon} />
+                                <Text style={{ fontSize: 10, color: '#666' }}>{a.network_ip || 'N/A'}</Text>
+                              </View>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>✓ ĐÃ VÀO</Text>
+                              <Text style={{ fontSize: 10, color: '#999' }}>
+                                {a.scanned_at
+                                  ? new Date(a.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                  : ''}
+                              </Text>
+                            </View>
+                          </View>
+                        ))
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            }}
+          />
         ) : viewMode === 'manage_grades' ? (
           <View style={{ flex: 1 }}>
             <View style={{ padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' }}>
@@ -666,7 +801,8 @@ export default function LMSScreen() {
             <FlatList
               data={enrollments}
               keyExtractor={e => e.enrollment_id.toString()}
-              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              style={styles.list}
+              contentContainerStyle={[styles.listContent, { paddingBottom: 140 }]}
               ListEmptyComponent={!loadingEnrollments ? <Text style={styles.emptyText}>Chưa có danh sách sinh viên.</Text> : <ActivityIndicator color="#B71C1C" />}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.gradeCard} onPress={() => openGradeModal(item)}>
@@ -694,6 +830,7 @@ export default function LMSScreen() {
             keyExtractor={g => g.id.toString()}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            style={styles.list}
             ListHeaderComponent={() => {
               const gradedSubjects = grades.filter(g => g.gpa_score !== null && g.gpa_score !== undefined);
               const totalCredits = gradedSubjects.reduce((acc, curr) => acc + (curr.credit || 0), 0);
@@ -747,7 +884,9 @@ export default function LMSScreen() {
                   <View style={[styles.gradeCol, { backgroundColor: '#F5F5F5', padding: 4, borderRadius: 4 }]}><Text style={styles.gradeLabel}>GPA/Hệ 4</Text><Text style={[styles.gradeValue, { color: '#2E7D32' }]}>{item.gpa_score || '-'}</Text></View>
                 </View>
               </View>
-            )} contentContainerStyle={{ padding: 16 }} />
+            )}
+            contentContainerStyle={styles.listContent}
+          />
         )}
 
         <Modal visible={showScanner} animationType="slide">
@@ -972,6 +1111,8 @@ export default function LMSScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
+  list: { flex: 1 },
+  listContent: { padding: 16, paddingBottom: 140 },
   title: { fontSize: 18, fontWeight: 'bold', color: '#B71C1C', textAlign: 'center', marginVertical: 10 },
   tabContainer: { marginBottom: 8 },
   tabBarScroll: { paddingLeft: 16, paddingRight: 30, flexDirection: 'row', height: 40, alignItems: 'center' },
@@ -995,6 +1136,7 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: '600', color: '#666', fontSize: 12 },
   tabTextActive: { color: '#FFF' },
   scanBtn: { backgroundColor: '#1B5E20', margin: 16, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
+  scanBtnContent: { flexDirection: 'row', alignItems: 'center' },
   scanBtnText: { color: '#FFF', fontWeight: 'bold' },
   searchContainer: { paddingHorizontal: 16, paddingVertical: 10 },
   searchInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 8, fontSize: 13 },
@@ -1003,6 +1145,8 @@ const styles = StyleSheet.create({
   subjName: { fontWeight: 'bold', flex: 1 },
   roomBadge: { fontSize: 10, fontWeight: 'bold', padding: 4, borderRadius: 4 },
   cardText: { fontSize: 12, color: '#666', marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  metaIcon: { marginRight: 6 },
   docCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#1976D2' },
   docTitle: { fontWeight: 'bold', color: '#1B5E20' },
   docTypeBadge: { fontSize: 10, backgroundColor: '#E3F2FD', padding: 2 },
