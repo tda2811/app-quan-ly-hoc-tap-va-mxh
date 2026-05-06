@@ -32,6 +32,8 @@ const MAPPING = {
   'calendar.fill': 'calendar-today',
   'clock.fill': 'schedule',
   'clock': 'schedule',
+  // Used for "Lịch Thi" to avoid missing icons on Android
+  'calendar.badge.clock': 'event-busy',
   'doc.text.fill': 'description',
   'doc.text': 'description',
   'mappin.and.ellipse': 'place',

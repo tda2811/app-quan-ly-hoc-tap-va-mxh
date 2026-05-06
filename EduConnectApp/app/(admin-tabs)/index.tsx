@@ -89,6 +89,11 @@ export default function AdminDashboard() {
           <IconSymbol name={"folder.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Quản Lý File</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/(admin-tabs)/subjects')}>
+          <IconSymbol name={"book.fill" as any} size={32} color="#1B5E20" style={{ marginBottom: 8 }} />
+          <Text style={styles.gridActionText}>Môn Học</Text>
+        </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/(admin-tabs)/schedules')}>
           <IconSymbol name={"calendar" as any} size={32} color="#1565C0" style={{ marginBottom: 8 }} />
@@ -96,7 +101,7 @@ export default function AdminDashboard() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.gridActionBtn} onPress={() => router.push('/(admin-tabs)/exams')}>
-          <IconSymbol name={"calendar.fill" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
+          <IconSymbol name={"calendar.badge.clock" as any} size={32} color="#D32F2F" style={{ marginBottom: 8 }} />
           <Text style={styles.gridActionText}>Lịch Thi</Text>
         </TouchableOpacity>
         

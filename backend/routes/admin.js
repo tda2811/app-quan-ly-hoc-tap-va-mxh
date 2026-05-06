@@ -101,6 +101,86 @@ router.get('/subjects', async (req, res) => {
 });
 
 /**
+ * Thêm môn học mới
+ */
+router.post('/subjects', async (req, res) => {
+    const { subject_code, name, credit } = req.body;
+    if (!subject_code || !name || credit === undefined || credit === null) {
+        return res.status(400).json({ success: false, message: 'Thiếu subject_code / name / credit' });
+    }
+
+    const creditNum = parseInt(credit);
+    if (Number.isNaN(creditNum) || creditNum <= 0) {
+        return res.status(400).json({ success: false, message: 'credit không hợp lệ' });
+    }
+
+    try {
+        await db.query(
+            'INSERT INTO subjects (subject_code, name, credit) VALUES (?, ?, ?)',
+            [String(subject_code).trim(), String(name).trim(), creditNum]
+        );
+        res.json({ success: true, message: 'Đã thêm môn học mới.' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Mã môn học đã tồn tại.' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi thêm môn học: ' + error.message });
+    }
+});
+
+/**
+ * Cập nhật môn học
+ */
+router.put('/subjects/:id', async (req, res) => {
+    const { id } = req.params;
+    const { subject_code, name, credit } = req.body;
+    if (!subject_code || !name || credit === undefined || credit === null) {
+        return res.status(400).json({ success: false, message: 'Thiếu subject_code / name / credit' });
+    }
+
+    const creditNum = parseInt(credit);
+    if (Number.isNaN(creditNum) || creditNum <= 0) {
+        return res.status(400).json({ success: false, message: 'credit không hợp lệ' });
+    }
+
+    try {
+        const [result] = await db.query(
+            'UPDATE subjects SET subject_code = ?, name = ?, credit = ? WHERE id = ?',
+            [String(subject_code).trim(), String(name).trim(), creditNum, id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy môn học.' });
+        }
+        res.json({ success: true, message: 'Cập nhật môn học thành công.' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Mã môn học đã tồn tại.' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật môn học: ' + error.message });
+    }
+});
+
+/**
+ * Xóa môn học
+ */
+router.delete('/subjects/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await db.query('DELETE FROM subjects WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy môn học.' });
+        }
+        res.json({ success: true, message: 'Xóa môn học thành công.' });
+    } catch (error) {
+        // Thường gặp khi môn đã được dùng trong schedules/documents/enrollments
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+            return res.status(400).json({ success: false, message: 'Không thể xóa vì môn học đang được sử dụng.' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi xóa môn học: ' + error.message });
+    }
+});
+
+/**
  * Quản lý Nhóm Chat (Groups)
  */
 

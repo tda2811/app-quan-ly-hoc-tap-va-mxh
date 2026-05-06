@@ -93,6 +93,8 @@ export default function LMSScreen() {
 
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [teacherHistorySchedule, setTeacherHistorySchedule] = useState<Schedule | null>(null);
+  const [teacherHistoryModalVisible, setTeacherHistoryModalVisible] = useState(false);
+  const [teacherHistoryModalSchedule, setTeacherHistoryModalSchedule] = useState<Schedule | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,8 +123,8 @@ export default function LMSScreen() {
     try {
       if (viewMode === 'study' || viewMode === 'exam' || viewMode === 'teacher_history') {
         await fetchSchedules();
-        if (viewMode === 'teacher_history' && teacherHistorySchedule) {
-          await fetchAttendees(teacherHistorySchedule.id);
+        if (viewMode === 'teacher_history' && teacherHistoryModalSchedule) {
+          await fetchAttendees(teacherHistoryModalSchedule.id);
         }
       }
       else if (viewMode === 'grades') await fetchGrades(true);
@@ -289,13 +291,13 @@ export default function LMSScreen() {
       return;
     }
 
-    if (viewMode === 'teacher_history' && teacherHistorySchedule) {
-      fetchAttendees(teacherHistorySchedule.id);
+    if (teacherHistoryModalVisible && teacherHistoryModalSchedule) {
+      fetchAttendees(teacherHistoryModalSchedule.id);
       return;
     }
 
     setAttendees([]);
-  }, [selectedSchedule, teacherHistorySchedule, viewMode]);
+  }, [selectedSchedule, teacherHistoryModalVisible, teacherHistoryModalSchedule]);
 
   const pickDocument = async () => {
     try {
@@ -710,13 +712,11 @@ export default function LMSScreen() {
             onRefresh={onRefresh}
             ListEmptyComponent={!loading ? <Text style={styles.emptyText}>Chưa có lịch để xem lịch sử.</Text> : <ActivityIndicator size="small" color="#B71C1C" style={{ marginTop: 20 }} />}
             renderItem={({ item }: { item: Schedule }) => {
-              const isExpanded = teacherHistorySchedule?.id === item.id;
-
               return (
                 <View>
                   <TouchableOpacity
                     style={styles.card}
-                    onPress={() => setTeacherHistorySchedule(prev => (prev?.id === item.id ? null : item))}
+                    onPress={() => setTeacherHistorySchedule(item)}
                   >
                     <View style={styles.cardHeader}>
                       <Text style={styles.subjName}>{item.subject_name}</Text>
@@ -732,62 +732,23 @@ export default function LMSScreen() {
                       <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
                       <Text style={styles.cardText}>Giờ: {item.start_time} - {item.end_time}</Text>
                     </View>
-                  </TouchableOpacity>
 
-                  {isExpanded && (
-                    <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -4 }}>
-                        <Text style={{ fontWeight: 'bold' }}>Thống kê điểm danh ({attendees.length})</Text>
-                        <TouchableOpacity onPress={() => fetchAttendees(item.id)}>
-                          <View style={styles.metaRow}>
-                            <IconSymbol name="arrow.clockwise" size={14} color="#1976D2" style={styles.metaIcon} />
-                            <Text style={{ color: '#1976D2', fontSize: 12, fontWeight: 'bold' }}>Tải lại</Text>
-                          </View>
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.historyStatsBtn}
+                      onPress={() => {
+                        setTeacherHistoryModalSchedule(item);
+                        setTeacherHistoryModalVisible(true);
+                        setAttendees([]);
+                        fetchAttendees(item.id);
+                      }}
+                    >
+                      <View style={styles.metaRow}>
+                        <IconSymbol name="checkmark.circle.fill" size={16} color="#1976D2" style={styles.metaIcon} />
+                        <Text style={styles.historyStatsText}>Thống kê điểm danh</Text>
                       </View>
-
-                      {loadingAttendees ? (
-                        <ActivityIndicator color="#B71C1C" style={{ marginTop: 10 }} />
-                      ) : attendees.length === 0 ? (
-                        <Text style={{ textAlign: 'center', color: '#999', marginVertical: 12 }}>
-                          Chưa có sinh viên nào điểm danh buổi này.
-                        </Text>
-                      ) : (
-                        attendees.map((a: any) => (
-                          <View
-                            key={a.id}
-                            style={{
-                              flexDirection: 'row',
-                              justifyContent: 'space-between',
-                              paddingVertical: 10,
-                              borderBottomWidth: 1,
-                              borderBottomColor: '#F0F0F0',
-                            }}
-                          >
-                            <View style={{ flex: 1, paddingRight: 10 }}>
-                              <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{a.full_name}</Text>
-                              <Text style={{ fontSize: 11, color: '#666' }}>{a.email}</Text>
-                              <View style={[styles.metaRow, { marginTop: 2 }]}>
-                                <IconSymbol name="mappin.and.ellipse" size={12} color="#666" style={styles.metaIcon} />
-                                <Text style={{ fontSize: 10, color: '#666' }}>{a.network_ip || 'N/A'}</Text>
-                              </View>
-                            </View>
-                            <View style={{ alignItems: 'flex-end' }}>
-                              <View style={styles.metaRow}>
-                                <IconSymbol name="checkmark.circle.fill" size={14} color="#1B5E20" style={styles.metaIcon} />
-                                <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>ĐÃ VÀO</Text>
-                              </View>
-                              <Text style={{ fontSize: 10, color: '#999' }}>
-                                {a.scanned_at
-                                  ? new Date(a.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                                  : ''}
-                              </Text>
-                            </View>
-                          </View>
-                        ))
-                      )}
-                    </View>
-                  )}
+                      <IconSymbol name="chevron.right" size={18} color="#BBB" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </View>
               );
             }}
@@ -943,6 +904,82 @@ export default function LMSScreen() {
           <View style={styles.cameraBackdrop}>
             <CameraView style={styles.cameraView} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} />
             <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}><Text style={{ color: '#FFF' }}>Đóng</Text></TouchableOpacity>
+          </View>
+        </Modal>
+
+        {/* Teacher History Modal */}
+        <Modal visible={teacherHistoryModalVisible} animationType="fade" transparent={true}>
+          <View style={styles.modalBackDrop}>
+            <View style={[styles.modalContent, { width: '92%', height: '85%' }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#B71C1C' }}>
+                    {teacherHistoryModalSchedule?.subject_name || 'Thống kê điểm danh'}
+                  </Text>
+                  {teacherHistoryModalSchedule && (
+                    <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                      {new Date(teacherHistoryModalSchedule.schedule_date).toLocaleDateString('vi-VN')} • {teacherHistoryModalSchedule.start_time}-{teacherHistoryModalSchedule.end_time} • {teacherHistoryModalSchedule.room_name}
+                    </Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => teacherHistoryModalSchedule && fetchAttendees(teacherHistoryModalSchedule.id)}
+                  style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+                >
+                  <View style={styles.metaRow}>
+                    <IconSymbol name="arrow.clockwise" size={16} color="#1976D2" style={styles.metaIcon} />
+                    <Text style={{ color: '#1976D2', fontWeight: 'bold' }}>Tải lại</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flex: 1, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10 }}>
+                {loadingAttendees ? (
+                  <ActivityIndicator color="#B71C1C" style={{ marginTop: 20 }} />
+                ) : (
+                  <FlatList
+                    data={attendees}
+                    keyExtractor={(a: any) => a.id.toString()}
+                    renderItem={({ item }) => (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{item.full_name}</Text>
+                          <Text style={{ fontSize: 11, color: '#666' }}>{item.email}</Text>
+                          <View style={[styles.metaRow, { marginTop: 2 }]}>
+                            <IconSymbol name="mappin.and.ellipse" size={12} color="#666" style={styles.metaIcon} />
+                            <Text style={{ fontSize: 10, color: '#666' }}>{item.network_ip || 'N/A'}</Text>
+                          </View>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <View style={styles.metaRow}>
+                            <IconSymbol name="checkmark.circle.fill" size={14} color="#1B5E20" style={styles.metaIcon} />
+                            <Text style={{ fontSize: 11, color: '#1B5E20', fontWeight: 'bold' }}>ĐÃ VÀO</Text>
+                          </View>
+                          <Text style={{ fontSize: 10, color: '#999' }}>
+                            {item.scanned_at
+                              ? new Date(item.scanned_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                              : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#999', marginTop: 20 }}>Chưa có SV nào điểm danh</Text>}
+                    contentContainerStyle={{ paddingBottom: 10 }}
+                  />
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.scanBtn, { backgroundColor: '#555', marginTop: 12, marginBottom: 0 }]}
+                onPress={() => {
+                  setTeacherHistoryModalVisible(false);
+                  setTeacherHistoryModalSchedule(null);
+                }}
+              >
+                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>ĐÓNG</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Modal>
 
@@ -1214,6 +1251,16 @@ const styles = StyleSheet.create({
   cardText: { fontSize: 12, color: '#666', marginTop: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   metaIcon: { marginRight: 6 },
+  historyStatsBtn: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyStatsText: { fontSize: 13, fontWeight: 'bold', color: '#1976D2' },
   docCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#1976D2' },
   docTitle: { fontWeight: 'bold', color: '#1B5E20' },
   docTypeBadge: { fontSize: 10, backgroundColor: '#E3F2FD', padding: 2 },

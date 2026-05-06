@@ -70,6 +70,14 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="subjects"
+        options={{
+          href: null,
+          title: 'Môn Học',
+          headerTitle: 'Quản Lý Môn Học',
+        }}
+      />
+      <Tabs.Screen
         name="schedules"
         options={{
           href: null,
