@@ -102,6 +102,14 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="semesters"
+        options={{
+          href: null,
+          title: 'Học Kỳ',
+          headerTitle: 'Quản Lý Học Kỳ',
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
           href: null,

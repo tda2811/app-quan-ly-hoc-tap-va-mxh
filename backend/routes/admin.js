@@ -812,6 +812,10 @@ router.put('/grades', async (req, res) => {
     }
 });
 
+/**
+ * QUẢN LÝ HỌC KỲ (SEMESTERS)
+ */
+
 // Lấy danh sách Học kỳ
 router.get('/semesters', async (req, res) => {
     try {
@@ -819,6 +823,73 @@ router.get('/semesters', async (req, res) => {
         res.json({ success: true, data: semesters });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy danh sách học kỳ.' });
+    }
+});
+
+// Thêm Học kỳ mới
+router.post('/semesters', async (req, res) => {
+    const { name, start_date, end_date } = req.body;
+
+    if (!name || !start_date || !end_date) {
+        return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ Tên học kỳ, Ngày bắt đầu, Ngày kết thúc.' });
+    }
+
+    if (new Date(start_date) >= new Date(end_date)) {
+        return res.status(400).json({ success: false, message: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc.' });
+    }
+
+    try {
+        const [result] = await db.query(
+            'INSERT INTO semesters (name, start_date, end_date) VALUES (?, ?, ?)',
+            [String(name).trim(), start_date, end_date]
+        );
+        res.json({ success: true, message: 'Đã thêm học kỳ mới.', data: { id: result.insertId } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi thêm học kỳ: ' + error.message });
+    }
+});
+
+// Cập nhật Học kỳ
+router.put('/semesters/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, start_date, end_date } = req.body;
+
+    if (!name || !start_date || !end_date) {
+        return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ Tên học kỳ, Ngày bắt đầu, Ngày kết thúc.' });
+    }
+
+    if (new Date(start_date) >= new Date(end_date)) {
+        return res.status(400).json({ success: false, message: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc.' });
+    }
+
+    try {
+        const [result] = await db.query(
+            'UPDATE semesters SET name = ?, start_date = ?, end_date = ? WHERE id = ?',
+            [String(name).trim(), start_date, end_date, id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ.' });
+        }
+        res.json({ success: true, message: 'Cập nhật học kỳ thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật học kỳ: ' + error.message });
+    }
+});
+
+// Xóa Học kỳ
+router.delete('/semesters/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await db.query('DELETE FROM semesters WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ.' });
+        }
+        res.json({ success: true, message: 'Xóa học kỳ thành công.' });
+    } catch (error) {
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+            return res.status(400).json({ success: false, message: 'Không thể xóa vì học kỳ đang được sử dụng (có sinh viên đăng ký môn).' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi xóa học kỳ: ' + error.message });
     }
 });
 

@@ -11,6 +11,7 @@ export default function AdminMoreScreen() {
   const menuItems = [
     { title: 'Lớp Học & Ngành', icon: 'list.bullet.indent', route: '/(admin-tabs)/classes' as const, color: '#1976D2' },
     { title: 'Quản Lý Môn Học', icon: 'book.fill', route: '/(admin-tabs)/subjects' as const, color: '#1B5E20' },
+    { title: 'Quản Lý Học Kỳ', icon: 'calendar.badge.plus', route: '/(admin-tabs)/semesters' as const, color: '#00838F' },
     { title: 'Quản Lý Lịch Học', icon: 'calendar', route: '/(admin-tabs)/schedules' as const, color: '#4CAF50' },
     { title: 'Quản Lý Lịch Thi', icon: 'calendar.badge.clock', route: '/(admin-tabs)/exams' as const, color: '#D32F2F' },
     { title: 'Quản Lý Điểm Số', icon: 'list.number', route: '/(admin-tabs)/grades' as const, color: '#795548' },

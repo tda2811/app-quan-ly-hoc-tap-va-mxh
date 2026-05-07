@@ -24,7 +24,7 @@ router.get('/schedules', async (req, res) => {
             FROM schedules s 
             JOIN subjects sub ON s.subject_id = sub.id 
             WHERE s.teacher_id = ?
-            ORDER BY s.schedule_date DESC
+            ORDER BY s.schedule_date DESC, s.start_time DESC, s.id DESC
         `, [teacher_id]);
         res.json({ success: true, data: schedules });
     } catch (error) {
@@ -110,26 +110,25 @@ router.post('/check-in', async (req, res) => {
             [schedule_id, student_id, clientIp]
         );
 
-        // 4. Auto-enroll: Sau khi quét, đảm bảo SV thấy lịch môn này (không đổi DB)
-        // Lấy subject_id + schedule_date từ schedule
+        // 4. Đồng bộ enrollments theo buổi học
         const [[schedule]] = await db.query(
             'SELECT subject_id, schedule_date FROM schedules WHERE id = ?',
             [schedule_id]
         );
 
         if (schedule?.subject_id && schedule?.schedule_date) {
-            // Tìm học kỳ chứa schedule_date
+            // Tìm học kỳ theo ngày buổi học
             let [[semester]] = await db.query(
                 'SELECT id FROM semesters WHERE ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1',
                 [schedule.schedule_date]
             );
 
-            // Fallback 1: lấy học kỳ gần nhất nếu không match theo ngày
+            // Nếu không match theo ngày -> lấy học kỳ gần nhất
             if (!semester?.id) {
                 [[semester]] = await db.query('SELECT id FROM semesters ORDER BY start_date DESC LIMIT 1');
             }
 
-            // Fallback 2: nếu chưa có học kỳ nào, tạo 1 học kỳ mặc định (không đổi thiết kế DB)
+            // Chưa có học kỳ nào -> tạo học kỳ mặc định
             if (!semester?.id) {
                 const [insertSem] = await db.query(
                     `INSERT INTO semesters (name, start_date, end_date)

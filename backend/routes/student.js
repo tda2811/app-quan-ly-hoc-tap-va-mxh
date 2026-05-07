@@ -166,7 +166,7 @@ router.get('/schedules', async (req, res) => {
             JOIN schedules s ON se.subject_id = s.subject_id
             JOIN subjects sub ON se.subject_id = sub.id
             WHERE se.student_id = ?
-            ORDER BY s.schedule_date DESC
+            ORDER BY s.schedule_date DESC, s.start_time DESC, s.id DESC
         `, [student_id]);
 
         res.json({ success: true, data: schedules });
