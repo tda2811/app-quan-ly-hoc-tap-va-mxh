@@ -36,12 +36,6 @@ export default function AdminGroupsScreen() {
    );
 
    useEffect(() => {
-      if (selectedId) {
-         fetchMembers();
-      }
-   }, [selectedId]);
-
-   useEffect(() => {
       if (viewAvailableUsers && selectedId) {
          fetchAvailableUsers();
       }
@@ -75,9 +69,11 @@ export default function AdminGroupsScreen() {
       }
    };
 
-   const fetchMembers = async () => {
+   const fetchMembers = async (groupId?: number | null) => {
+      const id = groupId != null ? groupId : selectedId;
+      if (!id) return;
       try {
-         const res = await axios.get(`${API_URL}/admin/groups/${selectedId}/members`);
+         const res = await axios.get(`${API_URL}/admin/groups/${id}/members`);
          if (res.data.success) {
             setMembers(res.data.data);
          }
@@ -100,14 +96,17 @@ export default function AdminGroupsScreen() {
 
    const openEditModal = (item: any) => {
       setIsEditing(true);
+      if (selectedId !== item.id) {
+         setMembers([]);
+      }
       setSelectedId(item.id);
       setName(item.name);
       setGroupType(item.group_type || 'custom_group');
       setViewMembers(false);
       setViewAvailableUsers(false);
       setSelectedUserIds([]);
-      setMembers([]);
       setModalVisible(true);
+      fetchMembers(item.id);
    };
 
    const handleSaveGroup = async () => {
