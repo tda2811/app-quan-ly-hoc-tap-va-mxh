@@ -20,9 +20,10 @@ router.get('/schedules', async (req, res) => {
     if (!teacher_id) return res.status(400).json({ success: false, message: 'Thiếu teacher_id' });
     try {
         const [schedules] = await db.query(`
-            SELECT s.*, sub.name as subject_name 
+            SELECT s.*, sub.name as subject_name, sem.name as semester_name
             FROM schedules s 
             JOIN subjects sub ON s.subject_id = sub.id 
+            LEFT JOIN semesters sem ON s.semester_id = sem.id
             WHERE s.teacher_id = ?
             ORDER BY s.schedule_date DESC, s.start_time DESC, s.id DESC
         `, [teacher_id]);
@@ -36,15 +37,23 @@ router.get('/schedules', async (req, res) => {
  * Giáo viên tự thêm lịch dạy
  */
 router.post('/schedules', async (req, res) => {
-    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type, semester_id } = req.body;
     if (!teacher_id || !subject_id || !schedule_date) {
         return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc.' });
     }
+    const semId = semester_id != null && semester_id !== '' ? parseInt(String(semester_id), 10) : NaN;
+    if (!semId || Number.isNaN(semId)) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ.' });
+    }
     try {
+        const [[semRow]] = await db.query('SELECT id FROM semesters WHERE id = ?', [semId]);
+        if (!semRow) {
+            return res.status(400).json({ success: false, message: 'Học kỳ không hợp lệ.' });
+        }
         const [result] = await db.query(`
-            INSERT INTO schedules (teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type || 'theory']);
+            INSERT INTO schedules (teacher_id, subject_id, semester_id, room_name, schedule_date, start_time, end_time, schedule_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [teacher_id, subject_id, semId, room_name, schedule_date, start_time, end_time, schedule_type || 'theory']);
 
         // Đồng bộ vào bảng schedule_teachers
         await db.query('INSERT IGNORE INTO schedule_teachers (schedule_id, teacher_id) VALUES (?, ?)', [result.insertId, teacher_id]);
@@ -112,35 +121,35 @@ router.post('/check-in', async (req, res) => {
 
         // 4. Đồng bộ enrollments theo buổi học
         const [[schedule]] = await db.query(
-            'SELECT subject_id, schedule_date FROM schedules WHERE id = ?',
+            'SELECT subject_id, schedule_date, semester_id FROM schedules WHERE id = ?',
             [schedule_id]
         );
 
         if (schedule?.subject_id && schedule?.schedule_date) {
-            // Tìm học kỳ theo ngày buổi học
-            let [[semester]] = await db.query(
-                'SELECT id FROM semesters WHERE ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1',
-                [schedule.schedule_date]
-            );
+            let semesterId = schedule.semester_id;
 
-            // Nếu không match theo ngày -> lấy học kỳ gần nhất
-            if (!semester?.id) {
-                [[semester]] = await db.query('SELECT id FROM semesters ORDER BY start_date DESC LIMIT 1');
-            }
-
-            // Chưa có học kỳ nào -> tạo học kỳ mặc định
-            if (!semester?.id) {
-                const [insertSem] = await db.query(
-                    `INSERT INTO semesters (name, start_date, end_date)
-                     VALUES ('Học kỳ mặc định', '2000-01-01', '2099-12-31')`
+            if (!semesterId) {
+                let [[semester]] = await db.query(
+                    'SELECT id FROM semesters WHERE ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1',
+                    [schedule.schedule_date]
                 );
-                semester = { id: insertSem.insertId };
+                if (!semester?.id) {
+                    [[semester]] = await db.query('SELECT id FROM semesters ORDER BY start_date DESC LIMIT 1');
+                }
+                if (!semester?.id) {
+                    const [insertSem] = await db.query(
+                        `INSERT INTO semesters (name, start_date, end_date)
+                         VALUES ('Học kỳ mặc định', '2000-01-01', '2099-12-31')`
+                    );
+                    semester = { id: insertSem.insertId };
+                }
+                semesterId = semester.id;
             }
 
             await db.query(
                 `INSERT IGNORE INTO student_enrollments (student_id, subject_id, semester_id, status)
                  VALUES (?, ?, ?, 'studying')`,
-                [student_id, schedule.subject_id, semester.id]
+                [student_id, schedule.subject_id, semesterId]
             );
         }
 
@@ -159,13 +168,21 @@ router.post('/check-in', async (req, res) => {
  */
 router.put('/schedules/:id', async (req, res) => {
     const { id } = req.params;
-    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    const { teacher_id, subject_id, room_name, schedule_date, start_time, end_time, schedule_type, semester_id } = req.body;
+    const semId = semester_id != null && semester_id !== '' ? parseInt(String(semester_id), 10) : NaN;
+    if (!semId || Number.isNaN(semId)) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ.' });
+    }
     try {
+        const [[semRow]] = await db.query('SELECT id FROM semesters WHERE id = ?', [semId]);
+        if (!semRow) {
+            return res.status(400).json({ success: false, message: 'Học kỳ không hợp lệ.' });
+        }
         await db.query(`
             UPDATE schedules 
-            SET subject_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?, schedule_type = ? 
+            SET subject_id = ?, semester_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?, schedule_type = ? 
             WHERE id = ? AND teacher_id = ?
-        `, [subject_id, room_name, schedule_date, start_time, end_time, schedule_type, id, teacher_id]);
+        `, [subject_id, semId, room_name, schedule_date, start_time, end_time, schedule_type, id, teacher_id]);
         res.json({ success: true, message: 'Cập nhật lịch dạy thành công.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

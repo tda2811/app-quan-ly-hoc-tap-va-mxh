@@ -11,6 +11,8 @@ interface ScheduleItem {
   id: number | string;
   subject_id: number | string;
   subject_name?: string;
+  semester_id?: number | null;
+  semester_name?: string | null;
   teacher_ids?: string;
   teacher_email?: string;
   room_name: string;
@@ -29,6 +31,7 @@ const ScheduleItemCard = React.memo(({ item, onEdit, onDelete }: { item: Schedul
           {item.schedule_type === 'theory' ? 'LÝ THUYẾT' : 'THỰC HÀNH'}
       </Text>
     </View>
+    <Text style={styles.cardDesc}>Học kỳ: {item.semester_name || '—'}</Text>
     <Text style={styles.cardDesc}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
     <Text style={styles.cardDesc}>Thời gian: {item.start_time} - {item.end_time}</Text>
     <Text style={styles.cardDesc}>Phòng: {item.room_name}</Text>
@@ -45,8 +48,9 @@ const ScheduleItemCard = React.memo(({ item, onEdit, onDelete }: { item: Schedul
 ));
 
 // Separate Modal Component to isolate form state and prevent full-screen re-renders
-const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, teachersList }: any) => {
+const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, teachersList, semestersList }: any) => {
   const [subjectId, setSubjectId] = useState('');
+  const [semesterId, setSemesterId] = useState('');
   const [teacherIds, setTeacherIds] = useState<string[]>([]);
   const [scheduleType, setScheduleType] = useState('theory');
   const [roomName, setRoomName] = useState('');
@@ -55,8 +59,10 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
   const [endTime, setEndTime] = useState(new Date());
 
   const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
+  const [semesterDropdownVisible, setSemesterDropdownVisible] = useState(false);
   const [teacherDropdownVisible, setTeacherDropdownVisible] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState('');
+  const [semesterFilter, setSemesterFilter] = useState('');
   const [teacherFilter, setTeacherFilter] = useState('');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -67,6 +73,7 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
     if (visible) {
       if (editingItem) {
         setSubjectId(String(editingItem.subject_id));
+        setSemesterId(editingItem.semester_id != null ? String(editingItem.semester_id) : '');
         setTeacherIds(editingItem.teacher_ids ? editingItem.teacher_ids.split(',').filter((d: any) => d) : []);
         setRoomName(editingItem.room_name);
         setScheduleType(editingItem.schedule_type);
@@ -79,6 +86,7 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
         setEndTime(et);
       } else {
         setSubjectId('');
+        setSemesterId(semestersList?.[0]?.id != null ? String(semestersList[0].id) : '');
         setTeacherIds([]);
         setRoomName('');
         setScheduleType('theory');
@@ -87,23 +95,26 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
         setEndTime(new Date());
       }
       setSubjectFilter('');
+      setSemesterFilter('');
       setTeacherFilter('');
       setSubjectDropdownVisible(false);
+      setSemesterDropdownVisible(false);
       setTeacherDropdownVisible(false);
     }
-  }, [visible, editingItem]);
+  }, [visible, editingItem, semestersList]);
 
   const toggleTeacher = (id: string) => {
     setTeacherIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
   };
 
   const handleLocalSave = () => {
-    if (!subjectId || !roomName) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin bắt buộc.');
+    if (!subjectId || !roomName || !semesterId) {
+      Alert.alert('Lỗi', 'Vui lòng chọn học kỳ và nhập đầy đủ thông tin bắt buộc.');
       return;
     }
     const payload = {
       subject_id: subjectId,
+      semester_id: semesterId,
       teacher_ids: teacherIds,
       room_name: roomName,
       schedule_type: scheduleType,
@@ -130,7 +141,7 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
              </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+          <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setSemesterDropdownVisible(false); }}>
             <Text style={{color: subjectId ? '#000' : '#888'}}>
               {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
             </Text>
@@ -147,6 +158,30 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
               <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
                 {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
                   <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
+                    <Text style={{fontSize: 14}}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.inputPicker} onPress={() => { setSemesterDropdownVisible(!semesterDropdownVisible); setSubjectDropdownVisible(false); setTeacherDropdownVisible(false); }}>
+            <Text style={{color: semesterId ? '#000' : '#888'}}>
+              {semesterId ? (semestersList.find((x: any) => x.id.toString() === semesterId) as any)?.name || 'Học kỳ' : 'Chọn Học kỳ (*)'}
+            </Text>
+          </TouchableOpacity>
+
+          {semesterDropdownVisible && (
+            <View style={styles.dropdownOverlay}>
+              <TextInput
+                style={styles.dropdownSearch}
+                placeholder="Tìm học kỳ..."
+                value={semesterFilter}
+                onChangeText={setSemesterFilter}
+              />
+              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+                {semestersList.filter((x: any) => (x.name || '').toLowerCase().includes(semesterFilter.toLowerCase())).map((item: any) => (
+                  <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSemesterId(item.id.toString()); setSemesterDropdownVisible(false); }}>
                     <Text style={{fontSize: 14}}>{item.name}</Text>
                   </TouchableOpacity>
                 ))}
@@ -239,7 +274,7 @@ const ScheduleModal = ({ visible, onClose, onSave, editingItem, subjectsList, te
             />
           )}
 
-          <TouchableOpacity style={styles.inputPicker} onPress={() => setTeacherDropdownVisible(!teacherDropdownVisible)}>
+          <TouchableOpacity style={styles.inputPicker} onPress={() => { setTeacherDropdownVisible(!teacherDropdownVisible); setSemesterDropdownVisible(false); }}>
             <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
               {teacherIds.length > 0 
                 ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
@@ -292,6 +327,7 @@ export default function AdminSchedulesScreen() {
   // Dropdown data
   const [subjectsList, setSubjectsList] = useState([]);
   const [teachersList, setTeachersList] = useState([]);
+  const [semestersList, setSemestersList] = useState([]);
 
   // Modal Control
   const [modalVisible, setModalVisible] = useState(false);
@@ -301,6 +337,7 @@ export default function AdminSchedulesScreen() {
     fetchSchedules();
     fetchSubjects();
     fetchTeachers();
+    fetchSemesters();
   }, []);
 
   const fetchSubjects = async () => {
@@ -317,6 +354,13 @@ export default function AdminSchedulesScreen() {
         setTeachersList(res.data.data.filter((u: any) => u.role === 'teacher'));
       }
     } catch (err) { console.error('Lỗi fetch teachers:', err); }
+  };
+
+  const fetchSemesters = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/admin/semesters`);
+      if (res.data.success) setSemestersList(res.data.data);
+    } catch (err) { console.error('Lỗi fetch semesters:', err); }
   };
 
   const fetchSchedules = async () => {
@@ -428,6 +472,7 @@ export default function AdminSchedulesScreen() {
         editingItem={editingItem}
         subjectsList={subjectsList}
         teachersList={teachersList}
+        semestersList={semestersList}
       />
 
       <TouchableOpacity style={styles.fab} onPress={openAddModal}>

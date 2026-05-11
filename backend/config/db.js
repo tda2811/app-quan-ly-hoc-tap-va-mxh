@@ -33,6 +33,24 @@ async function initTables() {
     } catch (err) {
         console.error('❌ Database init Error:', err.message);
     }
+
+    try {
+        const [cols] = await promisePool.query(
+            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schedules' AND COLUMN_NAME = 'semester_id'`
+        );
+        if (cols.length === 0) {
+            await promisePool.query(`
+                ALTER TABLE schedules
+                ADD COLUMN semester_id INT NULL,
+                ADD INDEX idx_schedules_semester (semester_id),
+                ADD CONSTRAINT fk_schedules_semester FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE SET NULL
+            `);
+            console.log('✅ Migration: schedules.semester_id added.');
+        }
+    } catch (err) {
+        console.error('❌ Migration schedules.semester_id:', err.message);
+    }
 }
 initTables();
 

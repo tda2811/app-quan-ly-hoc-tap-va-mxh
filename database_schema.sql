@@ -80,6 +80,7 @@ CREATE TABLE student_enrollments (
 CREATE TABLE schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_id INT NOT NULL,
+    semester_id INT NULL,
     teacher_id VARCHAR(36), 
     room_name VARCHAR(100) NOT NULL,
     schedule_type ENUM('theory', 'practice', 'exam') NOT NULL,
@@ -87,7 +88,9 @@ CREATE TABLE schedules (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE SET NULL,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_schedules_semester (semester_id)
 );
 
 -- Hỗ trợ nhiều Giám thị/Giảng viên cho 1 lịch (Phát sinh từ yêu cầu thực tế)

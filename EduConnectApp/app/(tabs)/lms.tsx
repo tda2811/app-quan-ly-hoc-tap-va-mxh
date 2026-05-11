@@ -18,6 +18,8 @@ interface Schedule {
   id: number;
   subject_id: number;
   subject_name: string;
+  semester_id?: number | null;
+  semester_name?: string | null;
   room_name: string;
   schedule_type: 'theory' | 'practice' | 'exam';
   schedule_date: string;
@@ -86,6 +88,9 @@ export default function LMSScreen() {
   const [selectedEditId, setSelectedEditId] = useState<number | null>(null);
   const [examSubType, setExamSubType] = useState<'Lý Thuyết' | 'Tự Luận'>('Lý Thuyết');
   const [subjectDropdownVisible, setSubjectDropdownVisible] = useState(false);
+  const [scheduleSemId, setScheduleSemId] = useState<number | null>(null);
+  const [scheduleSemDropdown, setScheduleSemDropdown] = useState(false);
+  const [scheduleSemFilter, setScheduleSemFilter] = useState('');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSTimePicker, setShowSTimePicker] = useState(false);
@@ -150,6 +155,7 @@ export default function LMSScreen() {
       if (res.data.success) {
         setSemesters(res.data.data);
         if (res.data.data.length > 0) setSelectedSemId(res.data.data[0].id);
+        setScheduleSemId(prev => prev ?? res.data.data[0]?.id ?? null);
       }
     } catch (e) { console.log(e); }
   };
@@ -345,14 +351,15 @@ export default function LMSScreen() {
 
   const handleAddSchedule = async () => {
     Keyboard.dismiss();
-    if (!selectedSubId || !roomName || !schDate) {
-      Alert.alert('Lỗi', 'Vui lòng điền đủ thông tin (Môn học, Phòng, Ngày).');
+    if (!selectedSubId || !roomName || !schDate || scheduleSemId == null) {
+      Alert.alert('Lỗi', 'Vui lòng điền đủ thông tin (Môn học, Học kỳ, Phòng, Ngày).');
       return;
     }
     try {
       const payload = {
         teacher_id: user.id,
         subject_id: selectedSubId,
+        semester_id: scheduleSemId,
         room_name: viewMode === 'exam' ? `[${examSubType}] ${roomName}` : roomName,
         schedule_date: schDate.toISOString().split('T')[0],
         start_time: sTime.toTimeString().split(' ')[0].substring(0, 5),
@@ -391,6 +398,7 @@ export default function LMSScreen() {
     setIsEditing(true);
     setSelectedEditId(item.id);
     setSelectedSubId(item.subject_id);
+    setScheduleSemId(item.semester_id != null ? item.semester_id : (semesters[0]?.id ?? null));
 
     if (item.schedule_type === 'exam') {
       if (item.room_name.startsWith('[Lý Thuyết]')) {
@@ -416,6 +424,8 @@ export default function LMSScreen() {
     setETime(endD);
 
     setSchType(item.schedule_type as any);
+    setScheduleSemDropdown(false);
+    setScheduleSemFilter('');
     setAddModalVisible(true);
   };
 
@@ -423,6 +433,7 @@ export default function LMSScreen() {
     setIsEditing(false);
     setSelectedEditId(null);
     setSelectedSubId(null);
+    setScheduleSemId(semesters.length > 0 ? semesters[0].id : null);
     setRoomName('');
     setSchDate(new Date());
     setSTime(new Date());
@@ -431,6 +442,8 @@ export default function LMSScreen() {
     setExamSubType('Lý Thuyết');
     setSubFilter('');
     setSubjectDropdownVisible(false);
+    setScheduleSemDropdown(false);
+    setScheduleSemFilter('');
   };
 
   const handleViewFile = async (fileUrl: string) => {
@@ -490,6 +503,12 @@ export default function LMSScreen() {
         <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
         <Text style={styles.cardText}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
       </View>
+      {item.semester_name ? (
+        <View style={styles.metaRow}>
+          <IconSymbol name="calendar.badge.clock" size={14} color="#666" style={styles.metaIcon} />
+          <Text style={styles.cardText}>Học kỳ: {item.semester_name}</Text>
+        </View>
+      ) : null}
       <View style={styles.metaRow}>
         <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
         <Text style={styles.cardText}>Giờ: {item.start_time} - {item.end_time}</Text>
@@ -736,6 +755,12 @@ export default function LMSScreen() {
                       <IconSymbol name="calendar" size={14} color="#666" style={styles.metaIcon} />
                       <Text style={styles.cardText}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
                     </View>
+                    {item.semester_name ? (
+                      <View style={styles.metaRow}>
+                        <IconSymbol name="calendar.badge.clock" size={14} color="#666" style={styles.metaIcon} />
+                        <Text style={styles.cardText}>Học kỳ: {item.semester_name}</Text>
+                      </View>
+                    ) : null}
                     <View style={styles.metaRow}>
                       <IconSymbol name="clock.fill" size={14} color="#666" style={styles.metaIcon} />
                       <Text style={styles.cardText}>Giờ: {item.start_time} - {item.end_time}</Text>
@@ -1060,7 +1085,7 @@ export default function LMSScreen() {
             <View style={styles.modalBackDrop}>
               <View style={styles.modalContent}>
                 <Text style={styles.label}>Môn Học (*):</Text>
-                <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setScheduleSemDropdown(false); }}>
                   <Text style={{ color: selectedSubId ? '#000' : '#888' }}>
                     {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
                   </Text>
@@ -1087,6 +1112,44 @@ export default function LMSScreen() {
                             }}
                           >
                             <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <Text style={styles.label}>Học kỳ (*):</Text>
+                <TouchableOpacity
+                  style={styles.inputPicker}
+                  onPress={() => { setScheduleSemDropdown(!scheduleSemDropdown); setSubjectDropdownVisible(false); }}
+                >
+                  <Text style={{ color: scheduleSemId != null ? '#000' : '#888' }}>
+                    {scheduleSemId != null
+                      ? semesters.find((s: any) => s.id === scheduleSemId)?.name || 'Học kỳ'
+                      : 'Chọn học kỳ'}
+                  </Text>
+                </TouchableOpacity>
+                {scheduleSemDropdown && (
+                  <View style={styles.dropdownOverlay}>
+                    <TextInput
+                      style={styles.dropdownSearchInside}
+                      placeholder="Tìm học kỳ..."
+                      value={scheduleSemFilter}
+                      onChangeText={setScheduleSemFilter}
+                    />
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 120 }}>
+                      {semesters
+                        .filter((x: any) => (x.name || '').toLowerCase().includes(scheduleSemFilter.toLowerCase()))
+                        .map((x: any) => (
+                          <TouchableOpacity
+                            key={x.id}
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                              setScheduleSemId(x.id);
+                              setScheduleSemDropdown(false);
+                            }}
+                          >
+                            <Text style={{ fontSize: 14 }}>{x.name}</Text>
                           </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -1177,7 +1240,7 @@ export default function LMSScreen() {
               <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
               <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
                   <Text style={styles.label}>Môn Học (*):</Text>
-                  <TouchableOpacity style={styles.inputPicker} onPress={() => setSubjectDropdownVisible(!subjectDropdownVisible)}>
+                  <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setScheduleSemDropdown(false); }}>
                     <Text style={{ color: selectedSubId ? '#000' : '#888' }}>
                       {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
                     </Text>
@@ -1204,6 +1267,44 @@ export default function LMSScreen() {
                               }}
                             >
                               <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  <Text style={styles.label}>Học kỳ (*):</Text>
+                  <TouchableOpacity
+                    style={styles.inputPicker}
+                    onPress={() => { setScheduleSemDropdown(!scheduleSemDropdown); setSubjectDropdownVisible(false); }}
+                  >
+                    <Text style={{ color: scheduleSemId != null ? '#000' : '#888' }}>
+                      {scheduleSemId != null
+                        ? semesters.find((s: any) => s.id === scheduleSemId)?.name || 'Học kỳ'
+                        : 'Chọn học kỳ'}
+                    </Text>
+                  </TouchableOpacity>
+                  {scheduleSemDropdown && (
+                    <View style={styles.dropdownOverlay}>
+                      <TextInput
+                        style={styles.dropdownSearchInside}
+                        placeholder="Tìm học kỳ..."
+                        value={scheduleSemFilter}
+                        onChangeText={setScheduleSemFilter}
+                      />
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 120 }}>
+                        {semesters
+                          .filter((x: any) => (x.name || '').toLowerCase().includes(scheduleSemFilter.toLowerCase()))
+                          .map((x: any) => (
+                            <TouchableOpacity
+                              key={x.id}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setScheduleSemId(x.id);
+                                setScheduleSemDropdown(false);
+                              }}
+                            >
+                              <Text style={{ fontSize: 14 }}>{x.name}</Text>
                             </TouchableOpacity>
                           ))}
                       </ScrollView>

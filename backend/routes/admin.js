@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
+async function requireSemesterId(semester_id) {
+    const id = semester_id != null && semester_id !== '' ? parseInt(String(semester_id), 10) : NaN;
+    if (!id || Number.isNaN(id)) return null;
+    const [rows] = await db.query('SELECT id FROM semesters WHERE id = ?', [id]);
+    return rows.length ? id : null;
+}
+
 // Tự động kiểm tra và thêm cột nếu thiếu cho bảng grades
 db.query("ALTER TABLE grades ADD COLUMN letter_grade VARCHAR(2) DEFAULT NULL").catch(err => { });
 db.query("ALTER TABLE grades ADD COLUMN gpa_score FLOAT DEFAULT NULL").catch(err => { });
@@ -479,11 +486,12 @@ router.delete('/documents/:id', async (req, res) => {
 router.get('/exams', async (req, res) => {
     try {
         const [exams] = await db.query(`
-            SELECT s.*, sub.name as subject_name, 
+            SELECT s.*, sub.name as subject_name, sem.name as semester_name,
                    GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
                    GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
             FROM schedules s
             JOIN subjects sub ON s.subject_id = sub.id
+            LEFT JOIN semesters sem ON s.semester_id = sem.id
             LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
             LEFT JOIN users u ON st.teacher_id = u.id
             WHERE s.schedule_type = 'exam'
@@ -497,14 +505,18 @@ router.get('/exams', async (req, res) => {
 });
 
 router.post('/exams', async (req, res) => {
-    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, semester_id } = req.body;
     try {
+        const semId = await requireSemesterId(semester_id);
+        if (!semId) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ hợp lệ.' });
+        }
         const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
 
         const [result] = await db.query(`
-            INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
-            VALUES (?, ?, ?, 'exam', ?, ?, ?)
-        `, [subject_id, firstTeacherId, room_name, schedule_date, start_time, end_time]);
+            INSERT INTO schedules (subject_id, semester_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
+            VALUES (?, ?, ?, ?, 'exam', ?, ?, ?)
+        `, [subject_id, semId, firstTeacherId, room_name, schedule_date, start_time, end_time]);
 
         const scheduleId = result.insertId;
 
@@ -521,15 +533,19 @@ router.post('/exams', async (req, res) => {
 
 router.put('/exams/:id', async (req, res) => {
     const { id } = req.params;
-    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, semester_id } = req.body;
     try {
+        const semId = await requireSemesterId(semester_id);
+        if (!semId) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ hợp lệ.' });
+        }
         const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
 
         await db.query(`
             UPDATE schedules 
-            SET subject_id = ?, teacher_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?
+            SET subject_id = ?, semester_id = ?, teacher_id = ?, room_name = ?, schedule_date = ?, start_time = ?, end_time = ?
             WHERE id = ? AND schedule_type = 'exam'
-        `, [subject_id, firstTeacherId, room_name, schedule_date, start_time, end_time, id]);
+        `, [subject_id, semId, firstTeacherId, room_name, schedule_date, start_time, end_time, id]);
 
         await db.query('DELETE FROM schedule_teachers WHERE schedule_id = ?', [id]);
 
@@ -560,11 +576,12 @@ router.delete('/exams/:id', async (req, res) => {
 router.get('/schedules', async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT s.*, sub.name as subject_name, 
+            SELECT s.*, sub.name as subject_name, sem.name as semester_name,
                    GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
                    GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
             FROM schedules s
             JOIN subjects sub ON s.subject_id = sub.id
+            LEFT JOIN semesters sem ON s.semester_id = sem.id
             LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
             LEFT JOIN users u ON st.teacher_id = u.id
             WHERE s.schedule_type != 'exam'
@@ -578,14 +595,18 @@ router.get('/schedules', async (req, res) => {
 });
 
 router.post('/schedules', async (req, res) => {
-    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type, semester_id } = req.body;
     try {
+        const semId = await requireSemesterId(semester_id);
+        if (!semId) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ hợp lệ.' });
+        }
         const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
 
         const [result] = await db.query(`
-            INSERT INTO schedules (subject_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [subject_id, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time]);
+            INSERT INTO schedules (subject_id, semester_id, teacher_id, room_name, schedule_type, schedule_date, start_time, end_time) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [subject_id, semId, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time]);
 
         const scheduleId = result.insertId;
 
@@ -602,15 +623,19 @@ router.post('/schedules', async (req, res) => {
 
 router.put('/schedules/:id', async (req, res) => {
     const { id } = req.params;
-    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type } = req.body;
+    const { subject_id, teacher_ids, room_name, schedule_date, start_time, end_time, schedule_type, semester_id } = req.body;
     try {
+        const semId = await requireSemesterId(semester_id);
+        if (!semId) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ hợp lệ.' });
+        }
         const firstTeacherId = Array.isArray(teacher_ids) && teacher_ids.length > 0 ? teacher_ids[0] : null;
 
         await db.query(`
             UPDATE schedules 
-            SET subject_id = ?, teacher_id = ?, room_name = ?, schedule_type = ?, schedule_date = ?, start_time = ?, end_time = ?
+            SET subject_id = ?, semester_id = ?, teacher_id = ?, room_name = ?, schedule_type = ?, schedule_date = ?, start_time = ?, end_time = ?
             WHERE id = ? AND schedule_type != 'exam'
-        `, [subject_id, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time, id]);
+        `, [subject_id, semId, firstTeacherId, room_name, schedule_type || 'theory', schedule_date, start_time, end_time, id]);
 
         await db.query('DELETE FROM schedule_teachers WHERE schedule_id = ?', [id]);
 
@@ -715,9 +740,12 @@ router.get('/enrollments', async (req, res) => {
                     SELECT DISTINCT a.student_id, s.subject_id, ?, 'studying'
                     FROM attendances a
                     JOIN schedules s ON a.schedule_id = s.id
-                    WHERE s.subject_id = ? 
-                    AND s.schedule_date BETWEEN ? AND ?
-                `, [semId, subId, semester.start_date, semester.end_date]);
+                    WHERE s.subject_id = ?
+                    AND (
+                        s.semester_id = ?
+                        OR (s.semester_id IS NULL AND s.schedule_date BETWEEN ? AND ?)
+                    )
+                `, [semId, subId, semId, semester.start_date, semester.end_date]);
             }
         }
 
@@ -728,7 +756,8 @@ router.get('/enrollments', async (req, res) => {
                    g.letter_grade, g.gpa_score,
                    (SELECT COUNT(*) FROM attendances a 
                     JOIN schedules sch ON a.schedule_id = sch.id 
-                    WHERE a.student_id = s.user_id AND sch.subject_id = se.subject_id AND a.status = 'present') as present_count
+                    WHERE a.student_id = s.user_id AND sch.subject_id = se.subject_id AND a.status = 'present'
+                    AND (sch.semester_id IS NULL OR sch.semester_id = se.semester_id)) as present_count
             FROM student_enrollments se
             JOIN students s ON se.student_id = s.user_id
             JOIN subjects sub ON se.subject_id = sub.id

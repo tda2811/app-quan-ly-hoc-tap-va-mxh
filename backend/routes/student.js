@@ -161,10 +161,12 @@ router.get('/schedules', async (req, res) => {
 
     try {
         const [schedules] = await db.query(`
-            SELECT s.*, sub.name as subject_name 
+            SELECT s.*, sub.name as subject_name, sem.name as semester_name
             FROM student_enrollments se
             JOIN schedules s ON se.subject_id = s.subject_id
+                AND (s.semester_id IS NULL OR s.semester_id = se.semester_id)
             JOIN subjects sub ON se.subject_id = sub.id
+            LEFT JOIN semesters sem ON s.semester_id = sem.id
             WHERE se.student_id = ?
             ORDER BY s.schedule_date DESC, s.start_time DESC, s.id DESC
         `, [student_id]);
