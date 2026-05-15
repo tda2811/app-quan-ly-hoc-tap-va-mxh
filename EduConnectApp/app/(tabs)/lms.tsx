@@ -630,10 +630,26 @@ export default function LMSScreen() {
         {user.role === 'student' && viewMode === 'study' && (
           <TouchableOpacity
             style={styles.scanBtn}
-            onPress={() => {
-              setScanned(false);
-              isScanningRef.current = false;
-              setShowScanner(true);
+            onPress={async () => {
+              try {
+                let granted = permission?.granted;
+                if (!granted) {
+                  const res = await requestPermission();
+                  granted = res?.granted;
+                }
+                if (!granted) {
+                  Alert.alert(
+                    'Cần quyền camera',
+                    'Vui lòng cấp quyền camera trong Cài đặt để quét QR điểm danh.'
+                  );
+                  return;
+                }
+                setScanned(false);
+                isScanningRef.current = false;
+                setShowScanner(true);
+              } catch (e) {
+                Alert.alert('Lỗi', 'Không thể mở camera. Vui lòng thử lại.');
+              }
             }}
           >
             <View style={styles.scanBtnContent}>
@@ -933,10 +949,32 @@ export default function LMSScreen() {
           />
         )}
 
-        <Modal visible={showScanner} animationType="slide">
+        <Modal
+          visible={showScanner}
+          animationType="slide"
+          onRequestClose={() => setShowScanner(false)}
+          presentationStyle="fullScreen"
+        >
           <View style={styles.cameraBackdrop}>
-            <CameraView style={styles.cameraView} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} />
-            <TouchableOpacity style={styles.closeCamBtn} onPress={() => setShowScanner(false)}><Text style={{ color: '#FFF' }}>Đóng</Text></TouchableOpacity>
+            {showScanner && (
+              <CameraView
+                style={StyleSheet.absoluteFillObject}
+                facing="back"
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+              />
+            )}
+            <View style={styles.cameraOverlay} pointerEvents="box-none">
+              <View style={styles.cameraFrame} pointerEvents="none" />
+              <Text style={styles.cameraHint}>Đưa mã QR vào khung để điểm danh</Text>
+              <TouchableOpacity
+                style={styles.closeCamBtn}
+                onPress={() => setShowScanner(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>ĐÓNG</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Modal>
 
@@ -1525,9 +1563,12 @@ const styles = StyleSheet.create({
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F9F9F9', padding: 8, borderRadius: 4, marginTop: 8 },
   scoreItem: { flex: 1, alignItems: 'center' },
   scoreLabel: { fontSize: 10, color: '#444' },
-  cameraBackdrop: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  cameraView: { width: '80%', aspectRatio: 1 },
-  closeCamBtn: { backgroundColor: '#D32F2F', padding: 10, marginTop: 20 },
+  cameraBackdrop: { flex: 1, backgroundColor: '#000' },
+  cameraView: { flex: 1 },
+  cameraOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  cameraFrame: { width: 250, height: 250, borderWidth: 3, borderColor: '#FFF', borderRadius: 12, backgroundColor: 'transparent' },
+  cameraHint: { color: '#FFF', marginTop: 24, fontSize: 14, textAlign: 'center', paddingHorizontal: 20 },
+  closeCamBtn: { position: 'absolute', bottom: 60, alignSelf: 'center', backgroundColor: '#D32F2F', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 30, elevation: 10 },
   modalBackDrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FFF', width: '85%', padding: 20, borderRadius: 10 },
   label: { fontSize: 13, fontWeight: 'bold', color: '#444', marginBottom: 5 },

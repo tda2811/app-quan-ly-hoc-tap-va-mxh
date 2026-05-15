@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, Platform, ScrollView } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/services/authService';
@@ -45,7 +45,7 @@ const ExamItemCard = React.memo(({ item, onEdit, onDelete }: { item: ExamItem, o
 ));
 
 // Separate Modal Component to isolate form state
-const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teachersList, semestersList }: any) => {
+const ExamModal = React.memo(({ visible, onClose, onSave, editingItem, subjectsList, teachersList, semestersList }: any) => {
   const [subjectId, setSubjectId] = useState('');
   const [semesterId, setSemesterId] = useState('');
   const [teacherIds, setTeacherIds] = useState<string[]>([]);
@@ -65,37 +65,43 @@ const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teache
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
+  const editingItemRef = useRef(editingItem);
+  const semestersListRef = useRef(semestersList);
+  editingItemRef.current = editingItem;
+  semestersListRef.current = semestersList;
+
   useEffect(() => {
-    if (visible) {
-      if (editingItem) {
-        setSubjectId(String(editingItem.subject_id));
-        setSemesterId(editingItem.semester_id != null ? String(editingItem.semester_id) : '');
-        setTeacherIds(editingItem.teacher_ids ? editingItem.teacher_ids.split(',').filter((d: any) => d) : []);
-        setRoomName(editingItem.room_name);
-        setScheduleDate(new Date(editingItem.schedule_date));
-        const stParts = editingItem.start_time.split(':');
-        const etParts = editingItem.end_time.split(':');
-        const st = new Date(); st.setHours(parseInt(stParts[0]), parseInt(stParts[1]), 0);
-        const et = new Date(); et.setHours(parseInt(etParts[0]), parseInt(etParts[1]), 0);
-        setStartTime(st);
-        setEndTime(et);
-      } else {
-        setSubjectId('');
-        setSemesterId(semestersList?.[0]?.id != null ? String(semestersList[0].id) : '');
-        setTeacherIds([]);
-        setRoomName('');
-        setScheduleDate(new Date());
-        setStartTime(new Date());
-        setEndTime(new Date());
-      }
-      setSubjectFilter('');
-      setSemesterFilter('');
-      setTeacherFilter('');
-      setSubjectDropdownVisible(false);
-      setSemesterDropdownVisible(false);
-      setTeacherDropdownVisible(false);
+    if (!visible) return;
+    const item = editingItemRef.current;
+    const sems = semestersListRef.current;
+    if (item) {
+      setSubjectId(String(item.subject_id));
+      setSemesterId(item.semester_id != null ? String(item.semester_id) : '');
+      setTeacherIds(item.teacher_ids ? item.teacher_ids.split(',').filter((d: any) => d) : []);
+      setRoomName(item.room_name);
+      setScheduleDate(new Date(item.schedule_date));
+      const stParts = item.start_time.split(':');
+      const etParts = item.end_time.split(':');
+      const st = new Date(); st.setHours(parseInt(stParts[0]), parseInt(stParts[1]), 0);
+      const et = new Date(); et.setHours(parseInt(etParts[0]), parseInt(etParts[1]), 0);
+      setStartTime(st);
+      setEndTime(et);
+    } else {
+      setSubjectId('');
+      setSemesterId(sems?.[0]?.id != null ? String(sems[0].id) : '');
+      setTeacherIds([]);
+      setRoomName('');
+      setScheduleDate(new Date());
+      setStartTime(new Date());
+      setEndTime(new Date());
     }
-  }, [visible, editingItem, semestersList]);
+    setSubjectFilter('');
+    setSemesterFilter('');
+    setTeacherFilter('');
+    setSubjectDropdownVisible(false);
+    setSemesterDropdownVisible(false);
+    setTeacherDropdownVisible(false);
+  }, [visible]);
 
   const toggleTeacher = (id: string) => {
     setTeacherIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -139,7 +145,7 @@ const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teache
                 value={subjectFilter}
                 onChangeText={setSubjectFilter}
               />
-              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
                 {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
                   <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
                     <Text style={{fontSize: 14}}>{item.name}</Text>
@@ -163,7 +169,7 @@ const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teache
                 value={semesterFilter}
                 onChangeText={setSemesterFilter}
               />
-              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
                 {semestersList.filter((x: any) => (x.name || '').toLowerCase().includes(semesterFilter.toLowerCase())).map((item: any) => (
                   <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSemesterId(item.id.toString()); setSemesterDropdownVisible(false); }}>
                     <Text style={{fontSize: 14}}>{item.name}</Text>
@@ -274,7 +280,7 @@ const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teache
                 value={teacherFilter}
                 onChangeText={setTeacherFilter}
               />
-              <ScrollView nestedScrollEnabled style={{maxHeight: 150}}>
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
                 {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
                   <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#FFEBEE' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
                     <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
@@ -298,7 +304,7 @@ const ExamModal = ({ visible, onClose, onSave, editingItem, subjectsList, teache
       </View>
     </Modal>
   );
-};
+});
 
 export default function AdminExamsScreen() {
   const { user } = useAuth();
@@ -357,20 +363,26 @@ export default function AdminExamsScreen() {
     }
   };
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setEditingItem(null);
     setModalVisible(true);
-  };
+  }, []);
 
-  const openEditModal = (exam: ExamItem) => {
+  const openEditModal = useCallback((exam: ExamItem) => {
     setEditingItem(exam);
     setModalVisible(true);
-  };
+  }, []);
 
-  const handleSave = async (payload: any) => {
+  const closeModal = useCallback(() => setModalVisible(false), []);
+
+  const editingItemRef = useRef(editingItem);
+  editingItemRef.current = editingItem;
+
+  const handleSave = useCallback(async (payload: any) => {
     try {
-      if (editingItem) {
-        await axios.put(`${API_URL}/admin/exams/${editingItem.id}`, payload);
+      const current = editingItemRef.current;
+      if (current) {
+        await axios.put(`${API_URL}/admin/exams/${current.id}`, payload);
         Alert.alert('Thành công', 'Đã cập nhật lịch thi.');
       } else {
         await axios.post(`${API_URL}/admin/exams`, payload);
@@ -381,7 +393,7 @@ export default function AdminExamsScreen() {
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể lưu lịch thi.');
     }
-  };
+  }, []);
 
   const handleDelete = (id: number | string) => {
     Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa lịch thi này?', [
@@ -448,9 +460,9 @@ export default function AdminExamsScreen() {
         </>
       )}
 
-      <ExamModal 
+      <ExamModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={closeModal}
         onSave={handleSave}
         editingItem={editingItem}
         subjectsList={subjectsList}
