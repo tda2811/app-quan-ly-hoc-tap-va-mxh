@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Alert,
   ActivityIndicator, Modal, Image, ScrollView, Platform, TextInput,
-  Keyboard, TouchableWithoutFeedback, Pressable
+  Keyboard, TouchableWithoutFeedback, Pressable, InteractionManager
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -293,13 +293,17 @@ export default function LMSScreen() {
 
   useEffect(() => {
     if (selectedSchedule) {
-      fetchAttendees(selectedSchedule.id);
-      return;
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchAttendees(selectedSchedule.id);
+      });
+      return () => task.cancel();
     }
 
     if (teacherHistoryModalVisible && teacherHistoryModalSchedule) {
-      fetchAttendees(teacherHistoryModalSchedule.id);
-      return;
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchAttendees(teacherHistoryModalSchedule.id);
+      });
+      return () => task.cancel();
     }
 
     setAttendees([]);
@@ -953,7 +957,6 @@ export default function LMSScreen() {
           visible={showScanner}
           animationType="slide"
           onRequestClose={() => setShowScanner(false)}
-          presentationStyle="fullScreen"
         >
           <View style={styles.cameraBackdrop}>
             {showScanner && (
@@ -1274,10 +1277,12 @@ export default function LMSScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.modalBackDrop}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
-              <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                  <Text style={styles.label}>Môn Học (*):</Text>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalBackDrop}>
+                <TouchableWithoutFeedback onPress={() => {}}>
+                  <View style={styles.modalContent}>
+                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                      <Text style={styles.label}>Môn Học (*):</Text>
                   <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setScheduleSemDropdown(false); }}>
                     <Text style={{ color: selectedSubId ? '#000' : '#888' }}>
                       {selectedSubId ? subjectsList.find(s => s.id === selectedSubId)?.name || 'Môn học' : 'Chọn Môn học'}
@@ -1450,8 +1455,11 @@ export default function LMSScreen() {
                       <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{isEditing ? 'Cập Nhật' : 'Lưu Lịch'}</Text>
                     </TouchableOpacity>
                   </View>
+                    </ScrollView>
+                  </View>
+                </TouchableWithoutFeedback>
               </View>
-            </View>
+            </TouchableWithoutFeedback>
           )}
         </Modal>
 
