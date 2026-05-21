@@ -20,6 +20,14 @@ const path = require('path');
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[${req.method}] ${req.originalUrl} - Status: ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Main Routes
