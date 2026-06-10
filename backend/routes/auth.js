@@ -48,6 +48,13 @@ router.post('/register', async (req, res) => {
                 );
             }
 
+            if (role === 'teacher') {
+                await connection.query(
+                    'INSERT INTO teachers (user_id, full_name) VALUES (?, ?)',
+                    [userId, fullName || 'Giảng viên']
+                );
+            }
+
             await connection.commit();
             res.status(201).json({ success: true, message: 'Đăng ký tài khoản thành công!' });
         } catch (err) {
@@ -103,6 +110,11 @@ router.post('/login', async (req, res) => {
         let userInfo = { id: user.id, email: user.email, role: user.role };
         if (user.role === 'student') {
             const [profiles] = await db.query('SELECT full_name, avatar_url FROM students WHERE user_id = ?', [user.id]);
+            if (profiles.length > 0) userInfo = { ...userInfo, ...profiles[0] };
+        }
+
+        if (user.role === 'teacher') {
+            const [profiles] = await db.query('SELECT full_name, avatar_url FROM teachers WHERE user_id = ?', [user.id]);
             if (profiles.length > 0) userInfo = { ...userInfo, ...profiles[0] };
         }
 

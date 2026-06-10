@@ -47,12 +47,24 @@ CREATE TABLE students (
 );
 
 
+-- Hồ sơ chi tiết Giảng viên (Tách riêng để dễ scale)
+CREATE TABLE teachers (
+    user_id VARCHAR(36) PRIMARY KEY,       -- Map 1-1 với bảng users
+    full_name VARCHAR(255) NOT NULL,
+    avatar_url VARCHAR(500),
+    bio TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
 -- Danh sách Môn học
 CREATE TABLE subjects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    credit INT NOT NULL                    
+    credit INT NOT NULL,
+    semester_id INT NULL DEFAULT NULL,
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE SET NULL
 );
 
 -- Quản lý Học kỳ (Dùng cho filter điểm và lịch học)

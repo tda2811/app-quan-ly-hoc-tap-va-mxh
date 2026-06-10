@@ -15,6 +15,7 @@ interface ScheduleItem {
   semester_name?: string | null;
   teacher_ids?: string;
   teacher_email?: string;
+  teacher_name?: string;
   room_name: string;
   schedule_type: string;
   schedule_date: string;
@@ -27,15 +28,15 @@ const ScheduleItemCard = React.memo(({ item, onEdit, onDelete }: { item: Schedul
   <View style={styles.card}>
     <View style={styles.cardHeader}>
       <Text style={styles.cardTitle}>{item.subject_name}</Text>
-      <Text style={[styles.typeBadge, item.schedule_type === 'practice' && {backgroundColor: '#E3F2FD', color: '#1976D2'}]}>
-          {item.schedule_type === 'theory' ? 'LÝ THUYẾT' : 'THỰC HÀNH'}
+      <Text style={[styles.typeBadge, item.schedule_type === 'practice' && { backgroundColor: '#E3F2FD', color: '#1976D2' }]}>
+        {item.schedule_type === 'theory' ? 'LÝ THUYẾT' : 'THỰC HÀNH'}
       </Text>
     </View>
     <Text style={styles.cardDesc}>Học kỳ: {item.semester_name || '—'}</Text>
     <Text style={styles.cardDesc}>Ngày: {new Date(item.schedule_date).toLocaleDateString('vi-VN')}</Text>
     <Text style={styles.cardDesc}>Thời gian: {item.start_time} - {item.end_time}</Text>
     <Text style={styles.cardDesc}>Phòng: {item.room_name}</Text>
-    <Text style={styles.cardDesc}>Giảng viên: {item.teacher_email || 'Chờ phân công'}</Text>
+    <Text style={styles.cardDesc}>Giảng viên: {item.teacher_name || item.teacher_email || 'Chờ phân công'}</Text>
     <View style={styles.actRow}>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(item)}>
         <Text style={styles.editBtnText}>Sửa</Text>
@@ -136,185 +137,185 @@ const ScheduleModal = React.memo(({ visible, onClose, onSave, editingItem, subje
       <View style={styles.modalBackDrop}>
         <View style={styles.modalContent}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.modalTitle, {color: '#1565C0'}]}>{editingItem ? 'Chỉnh Sửa Lịch Học' : 'Tạo Lịch Học Mới'}</Text>
-          
-          <View style={{flexDirection: 'row', marginBottom: 12}}>
-             <TouchableOpacity style={[styles.typeToggle, scheduleType === 'theory' && styles.typeToggleActive]} onPress={() => setScheduleType('theory')}>
-                <Text style={[styles.typeToggleText, scheduleType === 'theory' && {color: '#FFF'}]}>Lý Thuyết</Text>
-             </TouchableOpacity>
-             <TouchableOpacity style={[styles.typeToggle, scheduleType === 'practice' && styles.typeToggleActive]} onPress={() => setScheduleType('practice')}>
-                <Text style={[styles.typeToggleText, scheduleType === 'practice' && {color: '#FFF'}]}>Thực Hành</Text>
-             </TouchableOpacity>
-          </View>
+            <Text style={[styles.modalTitle, { color: '#1565C0' }]}>{editingItem ? 'Chỉnh Sửa Lịch Học' : 'Tạo Lịch Học Mới'}</Text>
 
-          <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setSemesterDropdownVisible(false); }}>
-            <Text style={{color: subjectId ? '#000' : '#888'}}>
-              {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
-            </Text>
-          </TouchableOpacity>
-
-          {subjectDropdownVisible && (
-            <View style={styles.dropdownOverlay}>
-              <TextInput 
-                style={styles.dropdownSearch} 
-                placeholder="Tìm môn học..." 
-                value={subjectFilter}
-                onChangeText={setSubjectFilter}
-              />
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
-                {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
-                  <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
-                    <Text style={{fontSize: 14}}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <TouchableOpacity style={[styles.typeToggle, scheduleType === 'theory' && styles.typeToggleActive]} onPress={() => setScheduleType('theory')}>
+                <Text style={[styles.typeToggleText, scheduleType === 'theory' && { color: '#FFF' }]}>Lý Thuyết</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.typeToggle, scheduleType === 'practice' && styles.typeToggleActive]} onPress={() => setScheduleType('practice')}>
+                <Text style={[styles.typeToggleText, scheduleType === 'practice' && { color: '#FFF' }]}>Thực Hành</Text>
+              </TouchableOpacity>
             </View>
-          )}
 
-          <TouchableOpacity style={styles.inputPicker} onPress={() => { setSemesterDropdownVisible(!semesterDropdownVisible); setSubjectDropdownVisible(false); setTeacherDropdownVisible(false); }}>
-            <Text style={{color: semesterId ? '#000' : '#888'}}>
-              {semesterId ? (semestersList.find((x: any) => x.id.toString() === semesterId) as any)?.name || 'Học kỳ' : 'Chọn Học kỳ (*)'}
-            </Text>
-          </TouchableOpacity>
-
-          {semesterDropdownVisible && (
-            <View style={styles.dropdownOverlay}>
-              <TextInput
-                style={styles.dropdownSearch}
-                placeholder="Tìm học kỳ..."
-                value={semesterFilter}
-                onChangeText={setSemesterFilter}
-              />
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
-                {semestersList.filter((x: any) => (x.name || '').toLowerCase().includes(semesterFilter.toLowerCase())).map((item: any) => (
-                  <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSemesterId(item.id.toString()); setSemesterDropdownVisible(false); }}>
-                    <Text style={{fontSize: 14}}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          <TextInput style={styles.input} placeholder="Phòng học (*)" value={roomName} onChangeText={setRoomName} />
-          
-          {Platform.OS === 'web' ? (
-            <TextInput 
-              style={styles.input} 
-              {...({ type: 'date' } as any)}
-              value={scheduleDate.toISOString().split('T')[0]} 
-              onChangeText={(text) => {
-                const d = new Date(text);
-                if (!isNaN(d.getTime())) setScheduleDate(d);
-              }}
-            />
-          ) : (
-            <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
-              <Text style={{color: '#000'}}>📅 Ngày: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
+            <TouchableOpacity style={styles.inputPicker} onPress={() => { setSubjectDropdownVisible(!subjectDropdownVisible); setSemesterDropdownVisible(false); }}>
+              <Text style={{ color: subjectId ? '#000' : '#888' }}>
+                {subjectId ? (subjectsList.find((s: any) => s.id.toString() === subjectId) as any)?.name || 'Môn học' : 'Chọn Môn học (*)'}
+              </Text>
             </TouchableOpacity>
-          )}
 
-          {showDatePicker && Platform.OS !== 'web' && (
-            <DateTimePicker
-              value={scheduleDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) setScheduleDate(selectedDate);
-              }}
-            />
-          )}
-
-          <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-            {Platform.OS === 'web' ? (
-              <>
-                <TextInput 
-                  style={[styles.input, {flex: 1, marginRight: 5}]} 
-                  {...({ type: 'time' } as any)}
-                  value={startTime.toTimeString().substring(0, 5)}
-                  onChangeText={(text) => {
-                    const [h, m] = text.split(':');
-                    if (h && m) {
-                      const d = new Date(startTime);
-                      d.setHours(parseInt(h), parseInt(m));
-                      setStartTime(d);
-                    }
-                  }}
+            {subjectDropdownVisible && (
+              <View style={styles.dropdownOverlay}>
+                <TextInput
+                  style={styles.dropdownSearch}
+                  placeholder="Tìm môn học..."
+                  value={subjectFilter}
+                  onChangeText={setSubjectFilter}
                 />
-                <TextInput 
-                  style={[styles.input, {flex: 1, marginLeft: 5}]} 
-                  {...({ type: 'time' } as any)}
-                  value={endTime.toTimeString().substring(0, 5)}
-                  onChangeText={(text) => {
-                    const [h, m] = text.split(':');
-                    if (h && m) {
-                      const d = new Date(endTime);
-                      d.setHours(parseInt(h), parseInt(m));
-                      setEndTime(d);
-                    }
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginRight: 5}]} onPress={() => setShowStartTimePicker(true)}>
-                  <Text style={{fontSize: 13, color: '#000'}}>⏰ Từ: {startTime.toTimeString().substring(0, 5)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.inputPicker, {flex: 1, marginLeft: 5}]} onPress={() => setShowEndTimePicker(true)}>
-                  <Text style={{fontSize: 13, color: '#000'}}>⏰ Đến: {endTime.toTimeString().substring(0, 5)}</Text>
-                </TouchableOpacity>
-              </>
+                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                  {subjectsList.filter((s: any) => s.name.toLowerCase().includes(subjectFilter.toLowerCase())).map((item: any) => (
+                    <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSubjectId(item.id.toString()); setSubjectDropdownVisible(false); }}>
+                      <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
-          </View>
 
-          {(showStartTimePicker || showEndTimePicker) && Platform.OS !== 'web' && (
-            <DateTimePicker
-              value={showStartTimePicker ? startTime : endTime}
-              mode="time"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowStartTimePicker(false);
-                setShowEndTimePicker(false);
-                if (selectedDate) showStartTimePicker ? setStartTime(selectedDate) : setEndTime(selectedDate);
-              }}
-            />
-          )}
+            <TouchableOpacity style={styles.inputPicker} onPress={() => { setSemesterDropdownVisible(!semesterDropdownVisible); setSubjectDropdownVisible(false); setTeacherDropdownVisible(false); }}>
+              <Text style={{ color: semesterId ? '#000' : '#888' }}>
+                {semesterId ? (semestersList.find((x: any) => x.id.toString() === semesterId) as any)?.name || 'Học kỳ' : 'Chọn Học kỳ (*)'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.inputPicker} onPress={() => { setTeacherDropdownVisible(!teacherDropdownVisible); setSemesterDropdownVisible(false); }}>
-            <Text style={{color: teacherIds.length > 0 ? '#000' : '#888'}}>
-              {teacherIds.length > 0 
-                ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ') 
-                : 'Giảng viên (Tùy chọn)'}
-            </Text>
-          </TouchableOpacity>
+            {semesterDropdownVisible && (
+              <View style={styles.dropdownOverlay}>
+                <TextInput
+                  style={styles.dropdownSearch}
+                  placeholder="Tìm học kỳ..."
+                  value={semesterFilter}
+                  onChangeText={setSemesterFilter}
+                />
+                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                  {semestersList.filter((x: any) => (x.name || '').toLowerCase().includes(semesterFilter.toLowerCase())).map((item: any) => (
+                    <TouchableOpacity key={item.id} style={styles.dropdownItem} onPress={() => { setSemesterId(item.id.toString()); setSemesterDropdownVisible(false); }}>
+                      <Text style={{ fontSize: 14 }}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
-          {teacherDropdownVisible && (
-            <View style={styles.dropdownOverlay}>
-               <TextInput 
-                style={styles.dropdownSearch} 
-                placeholder="Tìm giảng viên..." 
-                value={teacherFilter}
-                onChangeText={setTeacherFilter}
+            <TextInput style={styles.input} placeholder="Phòng học (*)" value={roomName} onChangeText={setRoomName} />
+
+            {Platform.OS === 'web' ? (
+              <TextInput
+                style={styles.input}
+                {...({ type: 'date' } as any)}
+                value={scheduleDate.toISOString().split('T')[0]}
+                onChangeText={(text) => {
+                  const d = new Date(text);
+                  if (!isNaN(d.getTime())) setScheduleDate(d);
+                }}
               />
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{maxHeight: 150}}>
-                {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
-                  <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#E3F2FD' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
-                    <Text style={{fontSize: 14}}>{item.full_name || item.email}</Text>
-                    {teacherIds.includes(item.id.toString()) && <Text style={{color: '#1565C0', fontWeight: 'bold'}}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+            ) : (
+              <TouchableOpacity style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ color: '#000' }}>📅 Ngày: {scheduleDate.toLocaleDateString('vi-VN')}</Text>
+              </TouchableOpacity>
+            )}
 
-          <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 16}}>
-            <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#CCC'}]} onPress={onClose}>
-              <Text style={styles.btnText}>Hủy</Text>
+            {showDatePicker && Platform.OS !== 'web' && (
+              <DateTimePicker
+                value={scheduleDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setScheduleDate(selectedDate);
+                }}
+              />
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              {Platform.OS === 'web' ? (
+                <>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginRight: 5 }]}
+                    {...({ type: 'time' } as any)}
+                    value={startTime.toTimeString().substring(0, 5)}
+                    onChangeText={(text) => {
+                      const [h, m] = text.split(':');
+                      if (h && m) {
+                        const d = new Date(startTime);
+                        d.setHours(parseInt(h), parseInt(m));
+                        setStartTime(d);
+                      }
+                    }}
+                  />
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginLeft: 5 }]}
+                    {...({ type: 'time' } as any)}
+                    value={endTime.toTimeString().substring(0, 5)}
+                    onChangeText={(text) => {
+                      const [h, m] = text.split(':');
+                      if (h && m) {
+                        const d = new Date(endTime);
+                        d.setHours(parseInt(h), parseInt(m));
+                        setEndTime(d);
+                      }
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity style={[styles.inputPicker, { flex: 1, marginRight: 5 }]} onPress={() => setShowStartTimePicker(true)}>
+                    <Text style={{ fontSize: 13, color: '#000' }}>⏰ Từ: {startTime.toTimeString().substring(0, 5)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.inputPicker, { flex: 1, marginLeft: 5 }]} onPress={() => setShowEndTimePicker(true)}>
+                    <Text style={{ fontSize: 13, color: '#000' }}>⏰ Đến: {endTime.toTimeString().substring(0, 5)}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
+            {(showStartTimePicker || showEndTimePicker) && Platform.OS !== 'web' && (
+              <DateTimePicker
+                value={showStartTimePicker ? startTime : endTime}
+                mode="time"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowStartTimePicker(false);
+                  setShowEndTimePicker(false);
+                  if (selectedDate) showStartTimePicker ? setStartTime(selectedDate) : setEndTime(selectedDate);
+                }}
+              />
+            )}
+
+            <TouchableOpacity style={styles.inputPicker} onPress={() => { setTeacherDropdownVisible(!teacherDropdownVisible); setSemesterDropdownVisible(false); }}>
+              <Text style={{ color: teacherIds.length > 0 ? '#000' : '#888' }}>
+                {teacherIds.length > 0
+                  ? teachersList.filter((t: any) => teacherIds.includes(t.id.toString())).map((t: any) => t.full_name || t.email).join(', ')
+                  : 'Giảng viên (Tùy chọn)'}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1565C0'}]} onPress={handleLocalSave}>
-              <Text style={styles.btnText}>Lưu Lại</Text>
-            </TouchableOpacity>
-          </View>
+
+            {teacherDropdownVisible && (
+              <View style={styles.dropdownOverlay}>
+                <TextInput
+                  style={styles.dropdownSearch}
+                  placeholder="Tìm giảng viên..."
+                  value={teacherFilter}
+                  onChangeText={setTeacherFilter}
+                />
+                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                  {teachersList.filter((t: any) => (t.full_name || t.email).toLowerCase().includes(teacherFilter.toLowerCase())).map((item: any) => (
+                    <TouchableOpacity key={item.id} style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: teacherIds.includes(item.id.toString()) ? '#E3F2FD' : '#FFF' }]} onPress={() => toggleTeacher(item.id.toString())}>
+                      <Text style={{ fontSize: 14 }}>{item.full_name || item.email}</Text>
+                      {teacherIds.includes(item.id.toString()) && <Text style={{ color: '#1565C0', fontWeight: 'bold' }}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#CCC' }]} onPress={onClose}>
+                <Text style={styles.btnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1565C0' }]} onPress={handleLocalSave}>
+                <Text style={styles.btnText}>Lưu Lại</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -325,7 +326,7 @@ const ScheduleModal = React.memo(({ visible, onClose, onSave, editingItem, subje
 export default function AdminSchedulesScreen() {
   const { user } = useAuth();
   if (!user) return null;
-  
+
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -433,15 +434,15 @@ export default function AdminSchedulesScreen() {
     ]);
   };
 
-  const filteredSchedules = schedules.filter(item => 
-    item.subject_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredSchedules = schedules.filter(item =>
+    item.subject_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.schedule_date.includes(searchQuery)
   );
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ 
-        title: 'Quản Lý Lịch Học', 
+      <Stack.Screen options={{
+        title: 'Quản Lý Lịch Học',
         headerBackTitle: 'Trở lại',
         headerRight: () => (
           <TouchableOpacity onPress={openAddModal} style={{ marginRight: 10 }}>
@@ -449,15 +450,15 @@ export default function AdminSchedulesScreen() {
           </TouchableOpacity>
         )
       }} />
-      
+
       {loading ? (
         <ActivityIndicator size="large" color="#1565C0" style={{ marginTop: 20 }} />
       ) : (
         <>
           <View style={styles.searchContainer}>
-            <TextInput 
-              style={styles.searchInput} 
-              placeholder="🔍 Tìm môn hoặc ngày (YYYY-MM-DD)..." 
+            <TextInput
+              style={styles.searchInput}
+              placeholder="🔍 Tìm môn hoặc ngày (YYYY-MM-DD)..."
               value={searchQuery}
               onChangeText={setSearchQuery}
             />

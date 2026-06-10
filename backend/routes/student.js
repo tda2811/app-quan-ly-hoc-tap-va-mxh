@@ -33,10 +33,11 @@ router.get('/posts', async (req, res) => {
     const { group_id, user_id } = req.query;
     try {
         let query = `
-            SELECT p.*, u.email, s.full_name, g.name as group_name, pm.media_url, pm.media_type
+            SELECT p.*, u.email, COALESCE(s.full_name, t.full_name) AS full_name, g.name as group_name, pm.media_url, pm.media_type
             FROM posts p 
             JOIN users u ON p.user_id = u.id
             LEFT JOIN students s ON u.id = s.user_id
+            LEFT JOIN teachers t ON u.id = t.user_id
             LEFT JOIN groups_table g ON p.group_id = g.id
             LEFT JOIN post_media pm ON p.id = pm.post_id
         `;
@@ -208,10 +209,11 @@ router.get('/posts/:postId/comments', async (req, res) => {
     const { postId } = req.params;
     try {
         const [comments] = await db.query(`
-            SELECT c.*, u.email, s.full_name 
+            SELECT c.*, u.email, COALESCE(s.full_name, t.full_name) AS full_name 
             FROM comments c 
             JOIN users u ON c.user_id = u.id 
             LEFT JOIN students s ON u.id = s.user_id 
+            LEFT JOIN teachers t ON u.id = t.user_id
             WHERE c.post_id = ? 
             ORDER BY c.created_at ASC
         `, [postId]);
@@ -264,11 +266,13 @@ router.get('/attendances', async (req, res) => {
 
     try {
         const [history] = await db.query(`
-            SELECT a.*, s.schedule_date, s.start_time, sub.name as subject_name, u.email as teacher_email
+            SELECT a.*, s.schedule_date, s.start_time, sub.name as subject_name, 
+                   u.email as teacher_email, COALESCE(t.full_name, u.email) AS teacher_name
             FROM attendances a
             JOIN schedules s ON a.schedule_id = s.id
             JOIN subjects sub ON s.subject_id = sub.id
             LEFT JOIN users u ON s.teacher_id = u.id
+            LEFT JOIN teachers t ON u.id = t.user_id
             WHERE a.student_id = ?
             ORDER BY s.schedule_date DESC, s.start_time DESC
         `, [student_id]);

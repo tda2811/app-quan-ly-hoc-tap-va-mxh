@@ -4,11 +4,10 @@ const db = require('../config/db');
 const requestIp = require('request-ip');
 const ipRangeCheck = require('ip-range-check');
 
-// Danh sách dải IP hợp lệ của WiFi trường (Lấy mẫu từ TECH_NOTE)
 const SCHOOL_IP_RANGES = [
     '192.168.1.0/24',
     '10.0.0.0/16',
-    '127.0.0.1' // cho localhost test
+    '127.0.0.1' //localhost test
 ];
 
 /**

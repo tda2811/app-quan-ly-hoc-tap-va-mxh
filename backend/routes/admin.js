@@ -13,6 +13,17 @@ async function requireSemesterId(semester_id) {
 db.query("ALTER TABLE grades ADD COLUMN letter_grade VARCHAR(2) DEFAULT NULL").catch(err => { });
 db.query("ALTER TABLE grades ADD COLUMN gpa_score FLOAT DEFAULT NULL").catch(err => { });
 
+// Auto-migrate: Đảm bảo mọi teacher đều có row trong bảng teachers
+// (dùng phần trước @ của email làm tên tạm, admin có thể sửa lại sau)
+db.query(`
+    INSERT IGNORE INTO teachers (user_id, full_name)
+    SELECT u.id, SUBSTRING_INDEX(u.email, '@', 1)
+    FROM users u
+    LEFT JOIN teachers t ON u.id = t.user_id
+    WHERE u.role = 'teacher' AND t.user_id IS NULL
+`).catch(err => console.log('Auto-migrate teachers skipped:', err.message));
+
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -64,9 +75,12 @@ router.get('/stats', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT u.id, u.email, u.role, u.status, s.full_name, s.student_code, s.class_id, s.major_id 
+            SELECT u.id, u.email, u.role, u.status,
+                   COALESCE(s.full_name, t.full_name) AS full_name,
+                   s.student_code, s.class_id, s.major_id
             FROM users u 
             LEFT JOIN students s ON u.id = s.user_id
+            LEFT JOIN teachers t ON u.id = t.user_id
         `);
         res.json({ success: true, data: users });
     } catch (error) {
@@ -100,7 +114,19 @@ router.get('/classes', async (req, res) => {
  */
 router.get('/subjects', async (req, res) => {
     try {
-        const [subjects] = await db.query('SELECT * FROM subjects');
+        const { semester_id } = req.query;
+        let query = `
+            SELECT sub.*, sem.name as semester_name
+            FROM subjects sub
+            LEFT JOIN semesters sem ON sub.semester_id = sem.id
+        `;
+        const params = [];
+        if (semester_id) {
+            query += ' WHERE sub.semester_id = ?';
+            params.push(semester_id);
+        }
+        query += ' ORDER BY sub.name ASC';
+        const [subjects] = await db.query(query, params);
         res.json({ success: true, data: subjects });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy danh sách môn học.' });
@@ -111,7 +137,7 @@ router.get('/subjects', async (req, res) => {
  * Thêm môn học mới
  */
 router.post('/subjects', async (req, res) => {
-    const { subject_code, name, credit } = req.body;
+    const { subject_code, name, credit, semester_id } = req.body;
     if (!subject_code || !name || credit === undefined || credit === null) {
         return res.status(400).json({ success: false, message: 'Thiếu subject_code / name / credit' });
     }
@@ -121,10 +147,12 @@ router.post('/subjects', async (req, res) => {
         return res.status(400).json({ success: false, message: 'credit không hợp lệ' });
     }
 
+    const semId = semester_id ? parseInt(semester_id) : null;
+
     try {
         await db.query(
-            'INSERT INTO subjects (subject_code, name, credit) VALUES (?, ?, ?)',
-            [String(subject_code).trim(), String(name).trim(), creditNum]
+            'INSERT INTO subjects (subject_code, name, credit, semester_id) VALUES (?, ?, ?, ?)',
+            [String(subject_code).trim(), String(name).trim(), creditNum, semId]
         );
         res.json({ success: true, message: 'Đã thêm môn học mới.' });
     } catch (error) {
@@ -140,7 +168,7 @@ router.post('/subjects', async (req, res) => {
  */
 router.put('/subjects/:id', async (req, res) => {
     const { id } = req.params;
-    const { subject_code, name, credit } = req.body;
+    const { subject_code, name, credit, semester_id } = req.body;
     if (!subject_code || !name || credit === undefined || credit === null) {
         return res.status(400).json({ success: false, message: 'Thiếu subject_code / name / credit' });
     }
@@ -150,10 +178,12 @@ router.put('/subjects/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: 'credit không hợp lệ' });
     }
 
+    const semId = semester_id ? parseInt(semester_id) : null;
+
     try {
         const [result] = await db.query(
-            'UPDATE subjects SET subject_code = ?, name = ?, credit = ? WHERE id = ?',
-            [String(subject_code).trim(), String(name).trim(), creditNum, id]
+            'UPDATE subjects SET subject_code = ?, name = ?, credit = ?, semester_id = ? WHERE id = ?',
+            [String(subject_code).trim(), String(name).trim(), creditNum, semId, id]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy môn học.' });
@@ -234,10 +264,11 @@ router.get('/groups/:id/members', async (req, res) => {
     const { id } = req.params;
     try {
         const [members] = await db.query(`
-            SELECT gm.user_id, u.email, s.full_name, s.student_code 
+            SELECT gm.user_id, u.email, COALESCE(s.full_name, t.full_name) AS full_name, s.student_code 
             FROM group_members gm
             JOIN users u ON gm.user_id = u.id
             LEFT JOIN students s ON u.id = s.user_id
+            LEFT JOIN teachers t ON u.id = t.user_id
             WHERE gm.group_id = ?
         `, [id]);
         res.json({ success: true, data: members });
@@ -346,6 +377,37 @@ router.put('/students/:id', async (req, res) => {
 });
 
 /**
+ * Cập nhật hồ sơ giảng viên (Họ tên) - UPSERT: tạo mới nếu chưa có, cập nhật nếu đã có
+ */
+router.put('/teachers/:id', async (req, res) => {
+    const { id } = req.params;
+    const { full_name, bio } = req.body;
+    if (!full_name || !full_name.trim()) {
+        return res.status(400).json({ success: false, message: 'Tên giảng viên không được để trống.' });
+    }
+    try {
+        // Kiểm tra user có tồn tại và đúng role teacher không
+        const [users] = await db.query('SELECT id FROM users WHERE id = ? AND role = ?', [id, 'teacher']);
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên.' });
+        }
+
+        // UPSERT: Nếu chưa có row trong teachers → tạo mới, nếu đã có → cập nhật
+        await db.query(`
+            INSERT INTO teachers (user_id, full_name, bio)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), bio = VALUES(bio)
+        `, [id, full_name.trim(), bio || null]);
+
+        res.json({ success: true, message: 'Cập nhật giảng viên thành công.' });
+    } catch (error) {
+        console.error('Update teacher error:', error);
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật giảng viên: ' + error.message });
+    }
+});
+
+
+/**
  * Cập nhật User (Quyền, Trạng thái)
  */
 router.put('/users/:id', async (req, res) => {
@@ -408,10 +470,11 @@ router.delete('/classes/:id', async (req, res) => {
 router.get('/posts', async (req, res) => {
     try {
         const [posts] = await db.query(`
-            SELECT p.*, u.email, s.full_name, g.name as group_name 
+            SELECT p.*, u.email, COALESCE(s.full_name, t.full_name) AS full_name, g.name as group_name 
             FROM posts p 
             JOIN users u ON p.user_id = u.id
             LEFT JOIN students s ON u.id = s.user_id
+            LEFT JOIN teachers t ON u.id = t.user_id
             LEFT JOIN groups_table g ON p.group_id = g.id
             ORDER BY p.created_at DESC
         `);
@@ -487,13 +550,15 @@ router.get('/exams', async (req, res) => {
     try {
         const [exams] = await db.query(`
             SELECT s.*, sub.name as subject_name, sem.name as semester_name,
-                   GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
-                   GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
+                   GROUP_CONCAT(DISTINCT COALESCE(t2.full_name, u.email) SEPARATOR ', ') as teacher_name,
+                   GROUP_CONCAT(DISTINCT u.email SEPARATOR ', ') as teacher_email,
+                   GROUP_CONCAT(DISTINCT u.id SEPARATOR ',') as teacher_ids
             FROM schedules s
             JOIN subjects sub ON s.subject_id = sub.id
             LEFT JOIN semesters sem ON s.semester_id = sem.id
             LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
             LEFT JOIN users u ON st.teacher_id = u.id
+            LEFT JOIN teachers t2 ON u.id = t2.user_id
             WHERE s.schedule_type = 'exam'
             GROUP BY s.id
             ORDER BY s.schedule_date DESC
@@ -577,13 +642,15 @@ router.get('/schedules', async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT s.*, sub.name as subject_name, sem.name as semester_name,
-                   GROUP_CONCAT(u.email SEPARATOR ', ') as teacher_email,
-                   GROUP_CONCAT(u.id SEPARATOR ',') as teacher_ids
+                   GROUP_CONCAT(DISTINCT COALESCE(t2.full_name, u.email) SEPARATOR ', ') as teacher_name,
+                   GROUP_CONCAT(DISTINCT u.email SEPARATOR ', ') as teacher_email,
+                   GROUP_CONCAT(DISTINCT u.id SEPARATOR ',') as teacher_ids
             FROM schedules s
             JOIN subjects sub ON s.subject_id = sub.id
             LEFT JOIN semesters sem ON s.semester_id = sem.id
             LEFT JOIN schedule_teachers st ON s.id = st.schedule_id
             LEFT JOIN users u ON st.teacher_id = u.id
+            LEFT JOIN teachers t2 ON u.id = t2.user_id
             WHERE s.schedule_type != 'exam'
             GROUP BY s.id
             ORDER BY s.schedule_date DESC

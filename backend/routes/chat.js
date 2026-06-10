@@ -9,7 +9,7 @@ router.get('/conversations/:userId', async (req, res) => {
         const [conversations] = await db.query(`
             SELECT c.*, 
                    IF(c.type = 'private', 
-                      (SELECT COALESCE(s.full_name, u2.email) FROM conversation_participants cp2 JOIN users u2 ON cp2.user_id = u2.id LEFT JOIN students s ON cp2.user_id = s.user_id WHERE cp2.conversation_id = c.id AND cp2.user_id != ? LIMIT 1), 
+                      (SELECT COALESCE(s.full_name, t.full_name, u2.email) FROM conversation_participants cp2 JOIN users u2 ON cp2.user_id = u2.id LEFT JOIN students s ON cp2.user_id = s.user_id LEFT JOIN teachers t ON cp2.user_id = t.user_id WHERE cp2.conversation_id = c.id AND cp2.user_id != ? LIMIT 1), 
                       c.name) as display_name
             FROM conversations c
             JOIN conversation_participants cp ON c.id = cp.conversation_id
